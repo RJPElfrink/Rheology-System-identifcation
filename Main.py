@@ -16,7 +16,7 @@ samples_decimated = int(samples/q_factor)
 
 #Frequency input selection from rheosys
 x_exact = np.linspace(0, wave_duration, samples, endpoint=False)
-y_exact = rhs.sin(x_exact*np.pi*freq*2)
+y_exact = np.sin(x_exact*np.pi*freq*2)
 
 
 #Sampling frequency to time vector use of scipy DECIMATE
