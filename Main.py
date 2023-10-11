@@ -5,27 +5,30 @@ import matplotlib.pyplot as plt
 import rheosys as rhs
 
 
-
-#sampling time settings
-wave_duration = 3
-sample_rate = 200
-freq = 3
-q_factor = 5
-samples = wave_duration*sample_rate
-samples_decimated = int(samples/q_factor)
-
-#Frequency input selection from rheosys
-x_exact = np.linspace(0, wave_duration, samples, endpoint=False)
-y_exact = np.sin(x_exact*np.pi*freq*2)
+def u_continuous(time):
+    u=np.sin(time)
+    return u
 
 
-#Sampling frequency to time vector use of scipy DECIMATE
-x_vect_time = np.linspace(0, wave_duration, samples_decimated, endpoint=False)
-y_vect_time = signal.decimate(y_exact,q_factor,)
 
+def u_sampling (excitation_frequency,sample_frequency,sample_time):
+    f0=excitation_frequency                     # f0 = excitation wave frequency [Hz]
+    Fs=sample_frequency                         # Fs = sampling frequency [Hz]
+    T=sample_time                               # Record window duration [s]
 
-#Figure plot of the corresponding fr
-plt.plot(x_exact, y_exact, '.-', x_vect_time, y_vect_time, 'o-')
-plt.xlabel('Time, Seconds')
-plt.legend(['data', 'decimated'], loc='best')
-plt.show
+    dt = 1/Fs                                   # Sampling period [s]
+    t = np.arange(0,T+dt,dt)   # Time vector for sampling [s]
+
+    # generate samples at the specified times
+    u_sampled = np.sin(2*np.pi*f0*t); # [signal units]
+
+    return (t,u_sampled)
+
+#run the function
+u,time= u_sampling(10,8,2)
+
+plt.plot(u,time)
+plt.xlabel('Time[s]')
+plt.ylabel('Amplitude')
+plt.axis('tight')
+plt.show()

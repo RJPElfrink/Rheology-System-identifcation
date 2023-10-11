@@ -6,8 +6,8 @@ import scipy as sc
 #   input must be defined as one value with the unit of ...
 #   output is defined with the unit of ...
 
-def sin ():
-    ouput=np.sin()
+def sin (time):
+    ouput=np.sin(time)
     return ouput
 
 def cos (x):
