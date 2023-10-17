@@ -31,6 +31,7 @@ def DAC_0(u_discrete, sample_time, time_range):
         u_test.append(u_discrete[x])
     return np.array(u_test)
 
+
 #define excitation varibales
 f_excitation = 15
 f_sample = 8
@@ -41,6 +42,10 @@ t2 = np.arange(0, T_total+(T_sample/4), T_sample/4)
 # run the function
 u_d, time = u_sampling(f_excitation, f_sample, T_total)
 u_t = DAC_0(u_d, T_sample, t2)
+
+# Alternative calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
+u_t_interp=interp1d(time,u_d,kind=0)
+
 
 plt.plot(time, u_d, "o", t2, u_t, "-")
 plt.xlabel('Time[s]')
