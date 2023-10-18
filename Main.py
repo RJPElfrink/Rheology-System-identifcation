@@ -24,6 +24,7 @@ def u_sampling(excitation_frequency, sample_frequency, sample_time):
 
     return (u_sampled, t)
 
+# Calculating the Discrete to Analog by interpolation between the sampled points
 def DAC_0(u_discrete, sample_time, time_range):
     u_test = []
     for i in range(len(time_range)):
