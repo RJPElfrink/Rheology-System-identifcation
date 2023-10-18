@@ -44,10 +44,10 @@ u_d, time = u_sampling(f_excitation, f_sample, T_total)
 u_t = DAC_0(u_d, T_sample, t2)
 
 # Alternative calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
-u_t_interp=interp1d(time,u_d,kind=0)
+u_interp=interp1d(time,u_d,kind=7)
+u_t_interp = u_interp(t2)
 
-
-plt.plot(time, u_d, "o", t2, u_t, "-")
+plt.plot(time, u_d, "o", t2, u_t_interp, "-")
 plt.xlabel('Time[s]')
 plt.ylabel('Amplitude')
 plt.axis('tight')
