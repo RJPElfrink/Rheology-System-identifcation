@@ -2,29 +2,43 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
-from math import floor
 
+#define excitation varibales
+f_s = 100               # Sample frequency
+T_s = 1/f_s             # Sampling time
+T = 10                  # Time interval of total test
+f_e = 1                 # Excitation frequency
+phi = np.pi/3           # Signal phase
+nCT = 100                # Oversampling points for continuous time plots
 
-def u_continuous(time):
-    u = np.sin(time)
-    return u
+NDT=T*f_s               # Number of discrete points
+NCT=T*f_s*nCT           # Number of cointinuous point
+t_DT= np.arange(0, T+T_s, T_s)              # Discrete-time vector
+t_CT= np.arange(0, T+(T_s/nCT), (T_s/nCT))  # Continuous-time vector
 
-def u_sampling(excitation_frequency, sample_frequency, sample_time):
-    # f0 = excitation wave frequency [Hz]
-    f0 = excitation_frequency
-    # Fs = sampling frequency [Hz]
-    Fs = sample_frequency
-    T = sample_time                               # Record window duration [s]
+def sine (period):
+    return np.sin(period)
 
-    dt = 1/Fs                                   # Sampling period [s]
-    t = np.arange(0, T+dt, dt)   # Time vector for sampling [s]
+u_DT=sine(2*np.pi*f_e*t_DT+phi)
+u_CT=sine(2*np.pi*f_e*t_CT+phi)
 
-    # generate samples at the specified times
-    u_sampled = np.sin(2*np.pi*f0*t)  # [signal units]
+plt.plot(t_DT, u_DT, "o", t_CT, u_CT, "-")
+plt.xlabel('Time[s]')
+plt.ylabel('Amplitude')
+plt.axis('tight')
+plt.show()
 
-    return (u_sampled, t)
+fig, (ax0, ax1,ax2) = plt.subplots(3, 1, layout='constrained')
+ax0.plot(t_CT, u_CT,'-')
+ax1.stem(t_DT,np.ones(np.size(t_DT)))
+ax2.plot(t_DT,u_DT,'o')
 
-# Calculating the Discrete to Analog by interpolation between the sampled points
+for ax in ax0,ax2:
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Signal')
+
+plt.show()
+
 def DAC_0(u_discrete, sample_time, time_range):
     u_test = []
     for i in range(len(time_range)):
@@ -33,23 +47,35 @@ def DAC_0(u_discrete, sample_time, time_range):
     return np.array(u_test)
 
 
-#define excitation varibales
-f_excitation = 15
-f_sample = 8
-T_sample = 1/f_sample
-T_total = 2
-t2 = np.arange(0, T_total+(T_sample/4), T_sample/4)
 
 # run the function
-u_d, time = u_sampling(f_excitation, f_sample, T_total)
-u_t = DAC_0(u_d, T_sample, t2)
+u_T = DAC_0(u_d, T_sample, t2)
 
 # Alternative calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
-u_interp=interp1d(time,u_d,kind=7)
-u_t_interp = u_interp(t2)
+u_interp=interp1d(t_DT,u_DT,kind=0)
+u_t_interp = u_interp(t_CT)
 
-plt.plot(time, u_d, "o", t2, u_t_interp, "-")
+
+plt.plot(t_DT, u_DT, "o", t_CT, u_t_interp, "-")
 plt.xlabel('Time[s]')
 plt.ylabel('Amplitude')
 plt.axis('tight')
+plt.show()
+
+def gamma_dot(t):
+    return u_interp(t)
+
+# waarom moet je de waardes voor
+# tau_dot=G*gamma_dot(t) -1/lambda *tau
+def ODE_maxwell(t, tau, L,G):
+    #L,G=args
+    return G*gamma_dot(t) - tau/L
+
+sol = solve_ivp(ODE_maxwell, [0, T], [0], args=(1.5, 1), t_eval=t_DT)
+
+
+plt.plot(np.squeeze(t_DT), np.squeeze(sol.y))
+plt.xlabel('t')
+plt.legend(['x', 'y'], shadow=False)
+plt.title('ODE Maxwell')
 plt.show()
