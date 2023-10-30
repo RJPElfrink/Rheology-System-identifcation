@@ -4,12 +4,12 @@ from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 
 #define excitation varibales
-f_s = 100               # Sample frequency
+f_s = 10               # Sample frequency
 T_s = 1/f_s             # Sampling time
-T = 10                  # Time interval of total test
-f_e = 1                 # Excitation frequency
+T = 2                  # Time interval of total test
+f_I = 2                 # Excitation frequency
 phi = np.pi/3           # Signal phase
-nCT = 100                # Oversampling points for continuous time plots
+nCT = 10                # Oversampling points for continuous time plots
 
 NDT=T*f_s               # Number of discrete points
 NCT=T*f_s*nCT           # Number of cointinuous point
@@ -19,16 +19,18 @@ t_CT= np.arange(0, T+(T_s/nCT), (T_s/nCT))  # Continuous-time vector
 def sine (period):
     return np.sin(period)
 
-u_DT=sine(2*np.pi*f_e*t_DT+phi)
-u_CT=sine(2*np.pi*f_e*t_CT+phi)
+u_DT=sine(2*np.pi*f_I*t_DT+phi)
+u_CT=sine(2*np.pi*f_I*t_CT+phi)
 
 plt.plot(t_DT, u_DT, "o", t_CT, u_CT, "-")
+#ax3.suptitle('Continuous signal with sampled points')
 plt.xlabel('Time[s]')
 plt.ylabel('Amplitude')
 plt.axis('tight')
 plt.show()
 
-fig, (ax0, ax1,ax2) = plt.subplots(3, 1, layout='constrained')
+fig2, (ax0, ax1,ax2) = plt.subplots(3, 1, layout='constrained')
+fig2.suptitle('Vertically stacked subplots')
 ax0.plot(t_CT, u_CT,'-')
 ax1.stem(t_DT,np.ones(np.size(t_DT)))
 ax2.plot(t_DT,u_DT,'o')
@@ -49,7 +51,7 @@ def DAC_0(u_discrete, sample_time, time_range):
 
 
 # run the function
-u_T = DAC_0(u_d, T_sample, t2)
+u_T = DAC_0(u_DT, T_s, t_CT)
 
 # Alternative calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
 u_interp=interp1d(t_DT,u_DT,kind=0)
