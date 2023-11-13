@@ -54,7 +54,7 @@ def DAC_0(u_discrete, sample_time, time_range):
 u_T = DAC_0(u_DT, T_s, t_CT)
 
 # Alternative calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
-u_interp=interp1d(t_DT,u_DT,kind=0)
+u_interp=interp1d(t_DT,u_DT,kind=1)
 u_t_interp = u_interp(t_CT)
 
 
