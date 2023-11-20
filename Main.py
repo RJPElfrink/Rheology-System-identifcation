@@ -2,61 +2,61 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
-
-#define excitation varibales
-f_s = 10               # Sample frequency
-T_s = 1/f_s             # Sampling time
-T = 2                  # Time interval of total test
-f_I = 2                 # Excitation frequency
-phi = np.pi/3           # Signal phase
-nCT = 10                # Oversampling points for continuous time plots
-
-NDT=T*f_s               # Number of discrete points
-NCT=T*f_s*nCT           # Number of cointinuous point
-t_DT= np.arange(0, T+T_s, T_s)              # Discrete-time vector
-t_CT= np.arange(0, T+(T_s/nCT), (T_s/nCT))  # Continuous-time vector
+from scipy.fft import fft,fftshift
 
 def sine (period):
     return np.sin(period)
 
-u_DT=sine(2*np.pi*f_I*t_DT+phi)
-u_CT=sine(2*np.pi*f_I*t_CT+phi)
+# To avoid aliasing and leakage, it is advised to determine the N (number of points in the window) and f_s (sampling frequency)
+# From that calculate
+# f_0=f_s/N = 1/T = 1/T_s*N
+# line number k=N*f/f_s
+# AVOID leakage: f_s/f_0 must be an integer
+
+#define excitation varibales
+f_s = 100                 # Sample frequency
+N= 100                    # Number of points
+f_0 = 20                 # Excitation frequency
+
+phi= np.pi/3            # signal phase
+Up=100                  # Upsampling for plots
+
+# Calculation of time window
+T=N/f_s                 # Time length
+T_s = 1/f_s             # Sampling time
+t_DT= np.arange(0, T,1/f_s)        # Discrete-time vector
+t_CT= np.arange(0, T, 1/(f_s*Up))  # Continuous-time vector
+
+
+u_DT=sine(2*np.pi*f_0*t_DT+phi)
+u_CT=sine(2*np.pi*f_0*t_CT+phi)
 
 plt.plot(t_DT, u_DT, "o", t_CT, u_CT, "-")
-#ax3.suptitle('Continuous signal with sampled points')
 plt.xlabel('Time[s]')
 plt.ylabel('Amplitude')
 plt.axis('tight')
 plt.show()
 
-fig2, (ax0, ax1,ax2) = plt.subplots(3, 1, layout='constrained')
-fig2.suptitle('Vertically stacked subplots')
-ax0.plot(t_CT, u_CT,'-')
-ax1.stem(t_DT,np.ones(np.size(t_DT)))
-ax2.plot(t_DT,u_DT,'o')
+### Creation of the
+Ud=(np.abs(fft(u_DT)))/N                         # DFT input signal
+Udsplit=fftshift(Ud)                             # DFT input signal zero split
+dB=-20*np.log(Udsplit)
+fd=np.linspace(0,f_s,N,endpoint=False)                             # DFT frequency
+fdsplit=np.linspace(-np.floor(N/2),-np.floor(N/2)+N,N,endpoint=False)    # DFT frequency zero split
+Lines=np.arange(0,N,1)                      # Line numbers after DFT
 
-for ax in ax0,ax2:
-    ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Signal')
-
+fig0, (ax0) = plt.subplots(1, 1, layout='constrained')
+ax0.stem([-f_0,f_0],[0.5,0.5],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
+ax0.stem(fdsplit,Udsplit,linefmt='red', markerfmt='D',label='DFT input frequency')
+fig0.suptitle('Amplitude spectrum of DFT and FT should coincide with the $f_0$ frequency')
+fig0.supxlabel('f[Hz]')
+fig0.supylabel('$|U_{DFT}|$')
+ax0.legend()
 plt.show()
 
-def DAC_0(u_discrete, sample_time, time_range):
-    u_test = []
-    for i in range(len(time_range)):
-        x = int(time_range[i]//sample_time)
-        u_test.append(u_discrete[x])
-    return np.array(u_test)
-
-
-
-# run the function
-u_T = DAC_0(u_DT, T_s, t_CT)
-
-# Alternative calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
-u_interp=interp1d(t_DT,u_DT,kind=1)
+# Calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
+u_interp=interp1d(t_DT,u_DT,kind=0)
 u_t_interp = u_interp(t_CT)
-
 
 plt.plot(t_DT, u_DT, "o", t_CT, u_t_interp, "-")
 plt.xlabel('Time[s]')
@@ -67,14 +67,12 @@ plt.show()
 def gamma_dot(t):
     return u_interp(t)
 
-# waarom moet je de waardes voor
 # tau_dot=G*gamma_dot(t) -1/lambda *tau
 def ODE_maxwell(t, tau, L,G):
     #L,G=args
     return G*gamma_dot(t) - tau/L
 
-sol = solve_ivp(ODE_maxwell, [0, T], [0], args=(1.5, 1), t_eval=t_DT)
-
+sol = solve_ivp(ODE_maxwell, [0, T], [0], args=(1.5, 2.5), t_eval=t_DT)
 
 plt.plot(np.squeeze(t_DT), np.squeeze(sol.y))
 plt.xlabel('t')
