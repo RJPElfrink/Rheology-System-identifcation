@@ -53,6 +53,7 @@ def window(f_0, N, end_range):
 
     # Exit the program if N is not divisible by f_0
     if not any(is_divisible(N, f_0, i) for i in range(1, end_range + 1)):
+        x=f_0*recommended_N
         print(f"Selected N is not divisible by f_0.")
-        print(f"The recommended N for divisibility by ({f_0} * i) for i in the range 1 to {end_range} around {N} is {recommended_N}.")
+        print(f"The recommended N for divisibility by ({f_0} * i) for i in the range 1 to {end_range} around {N} is {recommended_N}. To avoid leakage the sampling frequency is advised to be {x} [Hz]")
 
