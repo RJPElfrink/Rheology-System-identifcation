@@ -17,8 +17,11 @@ def sine (period):
 f_s = 10                 # Sample frequency
 N= 10                    # Number of points
 f_0 = 2                 # Excitation frequency
-
 phi= np.pi/3            # signal phase
+
+NBp = 10                  # Number of block points
+Ntrans=100                # Number of transient points
+
 Up=100                  # Upsampling for plots
 
 # Calculation of time window
@@ -26,7 +29,6 @@ T=N/f_s                 # Time length
 T_s = 1/f_s             # Sampling time
 t_DT= np.linspace(0, T,N,endpoint=False)        # Discrete-time vector
 t_CT= np.linspace(0, t_DT[-1], N*Up,endpoint=True)  # Continuous-time vector
-
 
 u_DT=sine(2*np.pi*f_0*t_DT+phi)
 u_CT=sine(2*np.pi*f_0*t_CT+phi)
@@ -55,7 +57,6 @@ ax0.legend()
 plt.show()
 
 
-
 # Calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
 u_interp=interp1d(t_DT,u_DT,kind=0)
 U_DT_int = u_interp(t_CT)
@@ -76,6 +77,7 @@ def ODE_maxwell(t, tau, L,G):
     return G*gamma_dot(t) - tau/L
 
 sol = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5, 2.5), t_eval=t_DT)
+
 
 plt.plot(np.squeeze(t_DT), np.squeeze(sol.y))
 plt.xlabel('t')
