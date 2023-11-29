@@ -15,12 +15,12 @@ def sine (period):
 
 #define excitation varibales
 f_s = 100                 # Sample frequency
-N= 10                    # Number of points
+N= int(Ntrans/NBp)                    # Number of points)
 f_0 = 25                 # Excitation frequency
 phi= np.pi/3            # signal phase
 
-NBp = 100                  # Number of block points
-Ntrans=1000                # Number of transient points
+NBp = 5                  # Number of block points
+Ntrans=40                # Number of transient points
 
 Up=100                  # Upsampling for plots
 

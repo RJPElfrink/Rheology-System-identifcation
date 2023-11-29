@@ -14,15 +14,16 @@ def sine (period):
 # AVOID leakage: f_s/f_0 must be an integer
 
 #define excitation varibales
-f_s = 10                 # Sample frequency
-N= 10                    # Number of points
-f_0 = 2                 # Excitation frequency
+f_s = 100                 # Sample frequency
+N= 120                    # Number of points
+f_0 = 25                 # Excitation frequency
 phi= np.pi/3            # signal phase
 
 NBp = 10                  # Number of block points
 Ntrans=100                # Number of transient points
 
 Up=100                  # Upsampling for plots
+k_value= f_s/(N*f_0)
 
 # Calculation of time window
 T=N/f_s                 # Time length
@@ -42,18 +43,19 @@ plt.show()
 ### Creation of the
 Ud=(np.abs(fft(u_DT)))/N                         # DFT input signal
 Udsplit=fftshift(Ud)                             # DFT input signal zero split
-dB=-20*np.log(Udsplit)
+dB=20*(Udsplit)
 fd=np.linspace(0,f_s,N,endpoint=False)                             # DFT frequency
 fdsplit=np.linspace(-np.floor(N/2),-np.floor(N/2)+N,N,endpoint=False)    # DFT frequency zero split
 Lines=np.arange(0,N,1)                      # Line numbers after DFT
 
 fig0, (ax0) = plt.subplots(1, 1, layout='constrained')
-ax0.stem([-f_0,f_0],[0.5,0.5],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
-ax0.stem(fdsplit,Udsplit,linefmt='red', markerfmt='D',label='DFT input frequency')
+ax0.stem([-f_0,f_0],[max(dB),max(dB)],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
+ax0.stem(fdsplit,dB,linefmt='red', markerfmt='D',label='DFT input frequency')
 fig0.suptitle('Amplitude spectrum of DFT and FT should coincide with the $f_0$ frequency')
 fig0.supxlabel('f[Hz]')
 fig0.supylabel('$|U_{DFT}|$')
 ax0.legend()
+ax0.set_yscale('log')
 plt.show()
 
 
@@ -77,6 +79,7 @@ def ODE_maxwell(t, tau, L,G):
     return G*gamma_dot(t) - tau/L
 
 sol = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5, 2.5), t_eval=t_DT)
+
 
 
 plt.plot(np.squeeze(t_DT), np.squeeze(sol.y))
