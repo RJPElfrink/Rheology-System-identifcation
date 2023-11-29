@@ -16,7 +16,7 @@ def sine (period):
 #define excitation varibales
 f_s = 100                 # Sample frequency
 N= 120                    # Number of points
-f_0 = 10                 # Excitation frequency
+f_0 = 13                 # Excitation frequency
 phi= np.pi/3            # signal phase
 
 NBp = 6                  # Number of block points
@@ -46,8 +46,7 @@ Ud=(np.abs(fft(u_DT)))/N                         # DFT input signal
 Udsplit=fftshift(Ud)                             # DFT input signal zero split
 dB=20*(Udsplit)
 fd=np.linspace(0,f_s,N,endpoint=False)                             # DFT frequency
-fdsplit=np.linspace(-np.floor(N/2),-np.floor(N/2)+N,N,endpoint=False)    # DFT frequency zero split
-Lines=np.arange(0,N,1)                      # Line numbers after DFT
+fdsplit=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,N,endpoint=False)    # DFT frequency zero split
 
 fig0, (ax0) = plt.subplots(1, 1, layout='constrained')
 ax0.stem([-f_0,f_0],[max(dB),max(dB)],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
@@ -145,7 +144,6 @@ Udsplit_new=fftshift(Ud_new)                             # DFT input signal zero
 dB_new=20*(Udsplit_new)
 fd_new=np.linspace(0,f_s,Ntotal,endpoint=False)                             # DFT frequency
 fdsplit_new=np.linspace(-np.floor(Ntotal/2),-np.floor(Ntotal/2)+Ntotal,Ntotal,endpoint=False)    # DFT frequency zero split
-Lines_new=np.arange(0,Ntotal,1)                      # Line numbers after DFT
 
 fig1, (ax1) = plt.subplots(1, 1, layout='constrained')
 ax1.stem([-f_0,f_0],[max(dB_new),max(dB_new)],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
