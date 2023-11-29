@@ -16,14 +16,14 @@ def sine (period):
 #define excitation varibales
 f_s = 100                 # Sample frequency
 N= 120                    # Number of points
-f_0 = 25                 # Excitation frequency
+f_0 = 10                 # Excitation frequency
 phi= np.pi/3            # signal phase
 
-NBp = 10                  # Number of block points
-Ntrans=100                # Number of transient points
+NBp = 6                  # Number of block points
+Ntotal=N*NBp             # Number of transient points
 
 Up=100                  # Upsampling for plots
-k_value= f_s/(N*f_0)
+k_value= (N*f_0)/f_s
 
 # Calculation of time window
 T=N/f_s                 # Time length
@@ -40,7 +40,8 @@ plt.ylabel('Amplitude')
 plt.axis('tight')
 plt.show()
 
-### Creation of the
+
+### Creation of the stem plot
 Ud=(np.abs(fft(u_DT)))/N                         # DFT input signal
 Udsplit=fftshift(Ud)                             # DFT input signal zero split
 dB=20*(Udsplit)
@@ -78,12 +79,80 @@ def ODE_maxwell(t, tau, L,G):
     #L,G=args
     return G*gamma_dot(t) - tau/L
 
-sol = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5, 2.5), t_eval=t_DT)
+sol_Block = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5, 2.5), t_eval=t_DT)
 
-
-
-plt.plot(np.squeeze(t_DT), np.squeeze(sol.y))
+plt.plot(np.squeeze(t_DT), np.squeeze(sol_Block.y))
 plt.xlabel('t')
 plt.legend(['x', 'y'], shadow=False)
 plt.title('ODE Maxwell')
 plt.show()
+
+#Calculations of the extended signal to remove the transient part
+#and repeat the signal to the full time window of N*NBp
+T=Ntotal/f_s                 # Time length
+T_s = 1/f_s                 # Sampling time
+
+t_Trans= np.linspace(0, T,Ntotal,endpoint=False)        # Transient-time vector
+
+u_Trans=sine(2*np.pi*f_0*t_Trans+phi)
+
+plt.plot(t_Trans, u_Trans)
+plt.xlabel('Time[s]')
+plt.ylabel('Amplitude')
+plt.axis('tight')
+plt.title(f'Transient signal of N = {N} times {NBp} with N total of {Ntotal}')
+plt.show()
+
+def gamma_dot(t):
+    return sine(2*np.pi*f_0*t+phi)
+
+# tau_dot=G*gamma_dot(t) -1/lambda *tau
+def ODE_maxwell(t, tau, L,G):
+    #L,G=args
+    return G*gamma_dot(t) - tau/L
+
+sol_Trans = solve_ivp(ODE_maxwell, [0, t_Trans[-1]], [0], args=(1.5, 2.5), t_eval=t_Trans)
+
+
+plt.plot(np.squeeze(t_Trans), np.squeeze(sol_Trans.y))
+plt.xlabel('t')
+plt.legend(['x', 'y'], shadow=False)
+plt.title('ODE Maxwell transient transient signal')
+plt.show()
+
+y_Trans=sol_Trans.y
+y_Bp=np.squeeze(y_Trans)
+y_Bp=y_Bp[((Ntotal-N)):]
+y_new=np.tile(y_Bp,NBp)
+
+plt.plot(t_Trans, y_new)
+plt.xlabel('t')
+plt.legend(['x', 'y'], shadow=False)
+plt.title(f'ODE Maxwell repeated signal ')
+plt.show()
+
+y_dif=np.squeeze(y_Trans)-y_new
+
+plt.plot(t_Trans, y_dif)
+plt.xlabel('t')
+plt.legend(['x', 'y'], shadow=False)
+plt.title('ODE Maxwell difference beteween transient and repeated signal')
+plt.show()
+
+### Creation of the
+Ud_new=(np.abs(fft(y_new)))/Ntotal                         # DFT input signal
+Udsplit_new=fftshift(Ud_new)                             # DFT input signal zero split
+dB_new=20*(Udsplit_new)
+fd_new=np.linspace(0,f_s,Ntotal,endpoint=False)                             # DFT frequency
+fdsplit_new=np.linspace(-np.floor(Ntotal/2),-np.floor(Ntotal/2)+Ntotal,Ntotal,endpoint=False)    # DFT frequency zero split
+Lines_new=np.arange(0,Ntotal,1)                      # Line numbers after DFT
+
+fig1, (ax1) = plt.subplots(1, 1, layout='constrained')
+ax1.stem([-f_0,f_0],[max(dB_new),max(dB_new)],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
+ax1.stem(fdsplit_new,dB_new,linefmt='red', markerfmt='D',label='DFT input frequency')
+fig1.suptitle('Amplitude spectrum of DFT and FT should coincide with the $f_0$ frequency')
+fig1.supxlabel('f[Hz]')
+fig1.supylabel('$|U_{DFT}|$')
+ax1.legend()
+ax1.set_yscale('log')
+#plt.show()

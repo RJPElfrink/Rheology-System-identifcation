@@ -15,7 +15,7 @@ def sine (period):
 
 #define excitation varibales
 f_s = 100                 # Sample frequency
-N= int(Ntrans/NBp)                    # Number of points)
+N= 10                    # Number of points)
 f_0 = 25                 # Excitation frequency
 phi= np.pi/3            # signal phase
 
@@ -51,7 +51,7 @@ sol = solve_ivp(ODE_maxwell, [0, t_Trans[-1]], [0], args=(1.5, 2.5), t_eval=t_Tr
 plt.plot(np.squeeze(t_Trans), np.squeeze(sol.y))
 plt.xlabel('t')
 plt.legend(['x', 'y'], shadow=False)
-plt.title('ODE Maxwell')
+plt.title('ODE Maxwell transient transient signal')
 plt.show()
 
 y_Trans=sol.y
@@ -62,7 +62,7 @@ y_new=np.tile(y_Bp,N)
 plt.plot(t_Trans, y_new)
 plt.xlabel('t')
 plt.legend(['x', 'y'], shadow=False)
-plt.title('ODE Maxwell')
+plt.title(f'ODE Maxwell repeated signal ')
 plt.show()
 
 y_dif=np.squeeze(y_Trans)-y_new
@@ -70,5 +70,5 @@ y_dif=np.squeeze(y_Trans)-y_new
 plt.plot(t_Trans, y_dif)
 plt.xlabel('t')
 plt.legend(['x', 'y'], shadow=False)
-plt.title('ODE Maxwell')
+plt.title('ODE Maxwell difference beteween transient and repeated signal')
 plt.show()
