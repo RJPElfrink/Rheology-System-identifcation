@@ -14,25 +14,26 @@ def sine (period):
 # AVOID leakage: f_s/f_0 must be an integer
 
 #define excitation varibales
-f_s = 100                 # Sample frequency
-N= 120                    # Number of points
-f_0 = 13                 # Excitation frequency
+f_s =1000                   # Sample frequency
+N= 1000                    # Number of points
+
 phi= np.pi/3            # signal phase
 
 NBp = 6                  # Number of block points
 Ntotal=N*NBp             # Number of transient points
 
 Up=100                  # Upsampling for plots
-k_value= (N*f_0)/f_s
 
 # Calculation of time window
-T=N/f_s                 # Time length
+f_0 = f_s/N                 # Excitation frequency
+k_value= (N*f_0)/f_s
+T = N/f_s                 # Time length
 T_s = 1/f_s             # Sampling time
 t_DT= np.linspace(0, T,N,endpoint=False)        # Discrete-time vector
 t_CT= np.linspace(0, t_DT[-1], N*Up,endpoint=True)  # Continuous-time vector
 
-u_DT=sine(2*np.pi*f_0*t_DT+phi)
-u_CT=sine(2*np.pi*f_0*t_CT+phi)
+u_DT=sine(2*np.pi*f_0*t_DT*24.99)
+u_CT=sine(2*np.pi*f_0*t_CT*24.99)
 
 plt.plot(t_DT, u_DT, "o", t_CT, u_CT, "-")
 plt.xlabel('Time[s]')
@@ -46,7 +47,7 @@ Ud=(np.abs(fft(u_DT)))/N                         # DFT input signal
 Udsplit=fftshift(Ud)                             # DFT input signal zero split
 dB=20*(Udsplit)
 fd=np.linspace(0,f_s,N,endpoint=False)                             # DFT frequency
-fdsplit=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,N,endpoint=False)    # DFT frequency zero split
+fdsplit=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,N,endpoint=True)    # DFT frequency zero split
 
 fig0, (ax0) = plt.subplots(1, 1, layout='constrained')
 ax0.stem([-f_0,f_0],[max(dB),max(dB)],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
@@ -58,6 +59,15 @@ ax0.legend()
 ax0.set_yscale('log')
 plt.show()
 
+fig1, (ax1) = plt.subplots(1, 1, layout='constrained')
+fig1.suptitle('Vertically stacked subplots')
+ax1.stem(f_0,max(20*Ud),linefmt='blue', markerfmt='D',label='Sample frequency')
+ax1.stem(fd,Ud,linefmt='red', markerfmt='D',label='FT input response')
+fig1.suptitle('The position of the FFT components on the frequency axis in Hz ')
+fig1.supxlabel('f[Hz]')
+fig1.supylabel('$|U_{DFT}|$')
+ax1.set_yscale('log')
+ax1.legend()
 
 # Calculation of u_t, by use of scipy interpolation, kind is 0,2 and all odd numbers
 u_interp=interp1d(t_DT,u_DT,kind=0)
@@ -143,7 +153,7 @@ Ud_new=(np.abs(fft(y_new)))/Ntotal                         # DFT input signal
 Udsplit_new=fftshift(Ud_new)                             # DFT input signal zero split
 dB_new=20*(Udsplit_new)
 fd_new=np.linspace(0,f_s,Ntotal,endpoint=False)                             # DFT frequency
-fdsplit_new=np.linspace(-np.floor(Ntotal/2),-np.floor(Ntotal/2)+Ntotal,Ntotal,endpoint=False)    # DFT frequency zero split
+fdsplit_new=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,Ntotal,endpoint=True)    # DFT frequency zero split
 
 fig1, (ax1) = plt.subplots(1, 1, layout='constrained')
 ax1.stem([-f_0,f_0],[max(dB_new),max(dB_new)],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
