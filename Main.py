@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 from scipy.fft import fft,fftshift
+from random import random
 
 def sine (period):
     return np.sin(period)
@@ -17,6 +18,22 @@ def DB (arr):
             decibel.append(-60)
 
     return decibel
+
+def rms(arr):
+    rms = np.sqrt(np.mean(np.square(arr)))
+    return rms
+
+def crest_fac(frequency):
+    return (max(abs(frequency)))/rms(frequency)
+
+def phase_lin(N,f_s,Tau,j=1):
+    return -Tau*2*np.pi*(j/N)*f_s
+
+def phase_rand():
+    return np.pi*random()
+
+def phase_schroeder():
+    return
 
 # To avoid aliasing and leakage, it is advised to determine the N (number of points in the window) and f_s (sampling frequency)
 # From that calculate
@@ -54,6 +71,21 @@ Udsplit=fftshift(Ud)                             # DFT input signal zero split
 fd=np.linspace(0,f_s,N,endpoint=False)                             # DFT frequency
 fdsplit=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,N,endpoint=False)    # DFT frequency zero split
 
+# Reconstruction of signal between sample points, use of scipy interpolation, kind is 0,2 and all odd numbers
+u_interp=interp1d(t_DT,u_DT,kind=kind)
+U_DT_int = u_interp(t_CT)
+
+# Solving of the maxwell differentail equation
+def gamma_dot(t):
+    return u_interp(t)
+
+# tau_dot=G*gamma_dot(t) -1/lambda *tau
+def ODE_maxwell(t, tau, L,G):
+    #L,G=args
+    return G*gamma_dot(t) - tau/L
+
+sol_Block = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5, 2.5), t_eval=t_DT)
+
 #Plot with sample points and continous signal
 plt.plot(t_DT, u_DT, ".", t_CT, u_CT, "-")
 plt.xlabel('Time[s]')
@@ -78,21 +110,6 @@ plt.xlabel('f[Hz]')
 plt.ylabel('$dB$')
 plt.legend()
 plt.show()
-
-# Reconstruction of signal between sample points, use of scipy interpolation, kind is 0,2 and all odd numbers
-u_interp=interp1d(t_DT,u_DT,kind=kind)
-U_DT_int = u_interp(t_CT)
-
-# Solving of the maxwell differentail equation
-def gamma_dot(t):
-    return u_interp(t)
-
-# tau_dot=G*gamma_dot(t) -1/lambda *tau
-def ODE_maxwell(t, tau, L,G):
-    #L,G=args
-    return G*gamma_dot(t) - tau/L
-
-sol_Block = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5, 2.5), t_eval=t_DT)
 
 # Plot of the reconstructed signal between sample points
 plt.plot(t_DT, u_DT, ".")
@@ -173,3 +190,4 @@ plt.xlabel('f[Hz]')
 plt.ylabel('$|U_{DFT}|$')
 plt.legend()
 plt.show()
+
