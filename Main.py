@@ -36,6 +36,18 @@ u_DT=sine(2*np.pi*f_0*t_DT)
 u_CT=sine(2*np.pi*f_0*t_CT)
 
 
+def Db (arr):
+    ref = 1
+    decibel=[]
+    for i in arr:
+        if i!=0:
+            decibel.append(20 * np.log10(abs(arr) / ref))
+        else:
+            decibel.append(-60)
+
+    return decibel
+
+
 def convert_to_decibel(arr):
     ref = 1
     if arr!=0:
@@ -54,18 +66,14 @@ plt.show()
 ### Creation of the stem plot
 Ud=(np.abs(fft(u_DT)))/N                         # DFT input signal
 Udsplit=fftshift(Ud)                             # DFT input signal zero split
-dB=[convert_to_decibel(i) for i in Udsplit]
+dB=[convert_to_decibel(i) for i in Ud]
 fd=np.linspace(0,f_s,N,endpoint=False)                             # DFT frequency
 fdsplit=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,N,endpoint=False)    # DFT frequency zero split
 
-plt.plot([-f_0,f_0],[max(dB),max(dB)],'D')
-plt.plot(fdsplit,dB,'o')
-plt.show()
-
-
+#print(Db(Ud))
 
 plt.stem([-f_0,f_0],[max(dB),max(dB)],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
-plt.stem(fdsplit,dB,linefmt='red', markerfmt='D',label='DFT input frequency')
+plt.stem(fdsplit,Udsplit,linefmt='red', markerfmt='D',label='DFT input frequency')
 plt.title('Amplitude spectrum of DFT and FT should coincide with the $f_0$ frequency')
 plt.xlabel('f[Hz]')
 plt.ylabel('$|U_{DFT}|$')
@@ -78,7 +86,7 @@ plt.stem(fd,20*Ud,linefmt='red', markerfmt='D',label='FT input response')
 plt.title('The position of the FFT components on the frequency axis in Hz ')
 plt.xlabel('f[Hz]')
 plt.ylabel('$|U_{DFT}|$')
-plt.yscale('log')
+#plt.yscale('log')
 plt.legend()
 plt.show()
 
@@ -175,7 +183,4 @@ plt.xlabel('f[Hz]')
 plt.ylabel('$|U_{DFT}|$')
 plt.yscale('log')
 plt.legend()
-plt.show()
-
-plt.magnitude_spectrum(fdsplit,Fs=f_s,Fc=f_0)
 plt.show()
