@@ -26,8 +26,8 @@ def rms(arr):
 def crest_fac(frequency):
     return (max(abs(frequency)))/rms(frequency)
 
-def phase_lin(N,f_s,Tau,j=1):
-    return -Tau*2*np.pi*(j/N)*f_s
+def phase_lin(N,f_s,Tau,t):
+    return -Tau*2*np.pi*(t/N)*f_s
 
 def phase_rand():
     return np.pi*random()
@@ -84,7 +84,7 @@ def ODE_maxwell(t, tau, L,G):
     #L,G=args
     return G*gamma_dot(t) - tau/L
 
-sol_Block = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5, 2.5), t_eval=t_DT)
+sol_Block = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5,2.5), t_eval=t_DT)
 
 #Plot with sample points and continous signal
 plt.plot(t_DT, u_DT, ".", t_CT, u_CT, "-")
