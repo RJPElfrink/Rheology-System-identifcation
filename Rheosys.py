@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sc
 import matplotlib.pyplot as plt
+from random import random
 
 
 #Excitation signals used as input for the analysis,
@@ -22,3 +23,19 @@ def DB (arr):
             decibel.append(-60)
 
     return decibel
+
+def rms(arr):
+    rms = np.sqrt(np.mean(np.square(arr)))
+    return rms
+
+def crest_fac(frequency):
+    return (max(abs(frequency)))/rms(frequency)
+
+def phase_lin(N,f_s,Tau,t):
+    return -Tau*2*np.pi*(t/N)*f_s
+
+def phase_rand():
+    return np.pi*random()
+
+def phase_schroeder():
+    return

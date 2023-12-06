@@ -3,37 +3,9 @@ import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 from scipy.fft import fft,fftshift
-from random import random
+import rheosys as rhs
+import Visualplots
 
-def sine (period):
-    return np.sin(period)
-
-def DB (arr):
-    ref = 1
-    decibel=[]
-    for i in arr:
-        if i!=0:
-            decibel.append(20 * np.log10(abs(i) / ref))
-        else:
-            decibel.append(-60)
-
-    return decibel
-
-def rms(arr):
-    rms = np.sqrt(np.mean(np.square(arr)))
-    return rms
-
-def crest_fac(frequency):
-    return (max(abs(frequency)))/rms(frequency)
-
-def phase_lin(N,f_s,Tau,t):
-    return -Tau*2*np.pi*(t/N)*f_s
-
-def phase_rand():
-    return np.pi*random()
-
-def phase_schroeder():
-    return
 
 # To avoid aliasing and leakage, it is advised to determine the N (number of points in the window) and f_s (sampling frequency)
 # From that calculate
@@ -61,8 +33,8 @@ T_s = 1/f_s             # Sampling time
 t_DT= np.linspace(0, T,N,endpoint=False)        # Discrete-time vector
 t_CT= np.linspace(0, t_DT[-1], N*Up,endpoint=True)  # Continuous-time vector
 
-u_DT=sine(2*np.pi*f_0*t_DT+phi)
-u_CT=sine(2*np.pi*f_0*t_CT+phi)
+u_DT=rhs.sine(2*np.pi*f_0*t_DT+phi)
+u_CT=rhs.sine(2*np.pi*f_0*t_CT+phi)
 
 
 ### Calculation of fourier transform in frequency distribution
@@ -86,46 +58,11 @@ def ODE_maxwell(t, tau, L,G):
 
 sol_Block = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(1.5,2.5), t_eval=t_DT)
 
-#Plot with sample points and continous signal
-plt.plot(t_DT, u_DT, ".", t_CT, u_CT, "-")
-plt.xlabel('Time[s]')
-plt.ylabel('Amplitude')
-plt.axis('tight')
-plt.show()
-
-#Stemplot of split frequency disribution
-plt.stem([-f_0,f_0],[2*max(Udsplit),2*max(Udsplit)],linefmt='blue', markerfmt='D',label='Sample frequency $kf_0=kf_s/N$')
-plt.stem(fdsplit,Udsplit,linefmt='red', markerfmt='d',label='DFT input frequency')
-plt.title('Amplitude spectrum of DFT and FT should coincide with the $f_0$ frequency')
-plt.xlabel('f[Hz]')
-plt.ylabel('$|U_{DFT}|$')
-plt.yscale('log')
-plt.legend()
-plt.show()
-
-#Lineplot over the frequency distribuation in decibels
-plt.plot(fd,DB(Ud),'-')
-plt.title('The position of the FFT components on the frequency axis in Hz ')
-plt.xlabel('f[Hz]')
-plt.ylabel('$dB$')
-plt.legend()
-plt.show()
-
-# Plot of the reconstructed signal between sample points
-plt.plot(t_DT, u_DT, ".")
-plt.plot(t_CT, U_DT_int, "-")
-plt.xlabel('Time[s]')
-plt.ylabel('Amplitude')
-plt.title(f'Reconstructed signal between sample points with interpolation kind of {kind}')
-plt.axis('tight')
-plt.show()
-
-# Plot of the solution of the maxwell differential
-plt.plot(np.squeeze(t_DT), np.squeeze(sol_Block.y))
-plt.xlabel('t')
-plt.legend(['x', 'y'], shadow=False)
-plt.title('ODE Maxwell')
-plt.show()
+Visualplots.input_signal_sample(t_DT,u_DT,t_CT,u_CT)
+Visualplots.input_stem_split_freqency(f_0,Udsplit,fdsplit)
+Visualplots.input_line_frequency(fd,Ud)
+Visualplots.input_reconstructer_sampling(t_DT,u_DT,t_CT,U_DT_int)
+Visualplots.maxwel_plot(t_DT,np.squeeze(sol_Block.y))
 
 # Calculations of the extended signal to remove the transient part
 # and repeat the signal to the full time window of N*NBp
@@ -133,11 +70,11 @@ Ttotal=Ntotal/f_s                 # Time length
 T_s = 1/f_s                 # Sampling time
 
 t_Trans= np.linspace(0, Ttotal,Ntotal,endpoint=False)        # Transient-time vector
-u_Trans=sine(2*np.pi*f_0*t_Trans + phi)
+u_Trans=rhs.sine(2*np.pi*f_0*t_Trans + phi)
 
 
 def gamma_dot(t):
-    return sine(2*np.pi*f_0*t+phi)
+    return rhs.sine(2*np.pi*f_0*t+phi)
 
 # tau_dot=G*gamma_dot(t) -1/lambda *tau
 def ODE_maxwell(t, tau, L,G):
@@ -158,36 +95,9 @@ Udsplit_new=fftshift(Ud_new)                             # DFT input signal zero
 fd_new=np.linspace(0,f_s,Ntotal,endpoint=False)                             # DFT frequency
 fdsplit_new=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,Ntotal,endpoint=True)    # DFT frequency zero split
 
-# Plot of total time signal
-plt.plot(t_Trans, u_Trans)
-plt.xlabel('Time[s]')
-plt.ylabel('Amplitude')
-plt.axis('tight')
-plt.title(f'Transient signal of N = {N} times {NBp} with N total of {Ntotal}')
-plt.show()
-
-plt.plot(np.squeeze(t_Trans), np.squeeze(sol_Trans.y))
-plt.xlabel('t')
-plt.legend(['x', 'y'], shadow=False)
-plt.title('ODE Maxwell transient transient signal')
-plt.show()
-
-plt.plot(t_Trans, y_new)
-plt.xlabel('t')
-plt.legend(['x', 'y'], shadow=False)
-plt.title(f'ODE Maxwell repeated signal ')
-plt.show()
-
-plt.plot(t_Trans, y_dif)
-plt.xlabel('t')
-plt.legend(['x', 'y'], shadow=False)
-plt.title('ODE Maxwell difference beteween transient and repeated signal')
-plt.show()
-
-plt.plot(fd_new,DB(Ud_new),'d')
-plt.title('The position of the FFT components on the frequency axis in Hz ')
-plt.xlabel('f[Hz]')
-plt.ylabel('$|U_{DFT}|$')
-plt.legend()
-plt.show()
-
+Visualplots.simple_plot(t_Trans,u_Trans,title=str(f'Transient signal of N = {N} times {NBp} with N total of {Ntotal}'),x_label=str('Time [s]'),y_label=str('Amplitude'))
+Visualplots.maxwel_plot(t_Trans,np.squeeze(sol_Trans.y),title='ODE Maxwell transient signal')
+Visualplots.maxwel_plot(t_Trans,y_new,title='ODE Maxwell repeated signal')
+Visualplots.maxwel_plot(t_Trans,y_dif,title='ODE Maxwell difference between transient and repeated signal')
+Visualplots.maxwel_plot(t_Trans,y_dif)
+#Visualplots.input_line_frequency(fd_new,Ud_new)
