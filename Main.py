@@ -17,7 +17,8 @@ import Visualplots
 f_s =1000                   # Sample frequency
 N= 1000                    # Number of points
 
-phi= 0            # signal phase
+
+phi= 0                # signal phase
 kind=0              #interpolation kind
 
 NBp = 6                  # Number of block points
@@ -36,7 +37,7 @@ t_CT= np.linspace(0, t_DT[-1], N*Up,endpoint=True)  # Continuous-time vector
 u_DT=rhs.sine(2*np.pi*f_0*t_DT+phi)
 u_CT=rhs.sine(2*np.pi*f_0*t_CT+phi)
 
-
+crest=rhs.crest_fac(u_DT)
 ### Calculation of fourier transform in frequency distribution
 Ud=(np.abs(fft(u_DT)))/N                         # DFT input signal
 Udsplit=fftshift(Ud)                             # DFT input signal zero split
@@ -99,5 +100,4 @@ Visualplots.simple_plot(t_Trans,u_Trans,title=str(f'Transient signal of N = {N} 
 Visualplots.maxwel_plot(t_Trans,np.squeeze(sol_Trans.y),title='ODE Maxwell transient signal')
 Visualplots.maxwel_plot(t_Trans,y_new,title='ODE Maxwell repeated signal')
 Visualplots.maxwel_plot(t_Trans,y_dif,title='ODE Maxwell difference between transient and repeated signal')
-Visualplots.maxwel_plot(t_Trans,y_dif)
 #Visualplots.input_line_frequency(fd_new,Ud_new)
