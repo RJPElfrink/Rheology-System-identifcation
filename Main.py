@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
-from scipy.fft import fft,fftshift
+from scipy.fft import fft,fftshift,ifft,ifftshift
 import rheosys as rhs
 import Visualplots
 
@@ -14,7 +14,7 @@ import Visualplots
 # AVOID leakage: f_s/f_0 must be an integer
 
 #define excitation varibales
-f_s =1000                   # Sample frequency
+f_s =100                   # Sample frequency
 N= 1000                    # Number of points
 
 
@@ -27,7 +27,7 @@ Ntotal=N*NBp             # Number of transient points
 Up=100                  # Upsampling for plots
 
 # Calculation of time window
-f_0 = 25*f_s/N                 # Excitation frequency
+f_0 = 5*f_s/N                 # Excitation frequency
 k_value= (N*f_0)/f_s
 T = N/f_s                 # Time length
 T_s = 1/f_s             # Sampling time
@@ -96,8 +96,7 @@ Udsplit_new=fftshift(Ud_new)                             # DFT input signal zero
 fd_new=np.linspace(0,f_s,Ntotal,endpoint=False)                             # DFT frequency
 fdsplit_new=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,Ntotal,endpoint=True)    # DFT frequency zero split
 
-Visualplots.simple_plot(t_Trans,u_Trans,title=str(f'Transient signal of N = {N} times {NBp} with N total of {Ntotal}'),x_label=str('Time [s]'),y_label=str('Amplitude'))
-Visualplots.maxwel_plot(t_Trans,np.squeeze(sol_Trans.y),title='ODE Maxwell transient signal')
-Visualplots.maxwel_plot(t_Trans,y_new,title='ODE Maxwell repeated signal')
-Visualplots.maxwel_plot(t_Trans,y_dif,title='ODE Maxwell difference between transient and repeated signal')
-#Visualplots.input_line_frequency(fd_new,Ud_new)
+#Visualplots.simple_plot(t_Trans,u_Trans,title=str(f'Transient signal of N = {N} times {NBp} with N total of {Ntotal}'),x_label=str('Time [s]'),y_label=str('Amplitude'))
+#Visualplots.maxwel_plot(t_Trans,np.squeeze(sol_Trans.y),title='ODE Maxwell transient signal')
+#Visualplots.maxwel_plot(t_Trans,y_new,title='ODE Maxwell repeated signal')
+#Visualplots.maxwel_plot(t_Trans,y_dif,title='ODE Maxwell difference between transient and repeated signal')
