@@ -26,7 +26,8 @@ def DB (arr):
     return decibel
 
 def rms(arr):
-    rms = np.sqrt(np.mean(np.square(arr)))
+    # Return the root mean square of all the elements of arr, flattened out.
+    rms = np.sqrt(np.mean(np.square(abs(arr))))
     return rms
 
 def crest_fac(frequency):
@@ -60,8 +61,7 @@ def multisine(frequency_limits, f_s, N, **kwargs):
     # Freqency list of the defined amount of frequencies, with length NN
     index_vector = np.arange(f_index[0][0], f_index[1][-1] + 1)
     NN = len(index_vector)
-    print(index_vector, 'index vector')
-    print(NN)
+
 
     mag = kwargs.get('MagnitudeResponse', np.zeros(N))
     phase_response = kwargs.get('PhaseResponse', 'Schroeder')
@@ -74,7 +74,7 @@ def multisine(frequency_limits, f_s, N, **kwargs):
     if not np.any(mag):
         mag = np.zeros(N)
         mag[index_vector - 1] = 1.0 / len(index_vector)
-        print('mag',(mag))
+
     else:
         if len(mag) != N:
             raise ValueError('Magnitude response must be the same length as the desired signal.')
@@ -112,13 +112,15 @@ def multisine(frequency_limits, f_s, N, **kwargs):
         t=np.linspace(0,T,N,endpoint=False)
         for nn in range(NN):
             mm = index_vector[nn]
-            y += np.sqrt(mag[mm - 1] / 2) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
+            #y += np.sqrt(mag[mm - 1] / 2) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
+            y += (mag[mm - 1]) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
+        print('max', np.max(y), 'min', np.min(y),'average',np.average(y))
     else:
         #Y = np.sqrt(mag / 2) * np.exp(1j * phase)
-        Y = np.sqrt(mag / 2) * np.exp(1j * phase)
+        Y = (mag) * np.exp(1j * phase)
         y = ifft(force_fft_symmetry(Y)) * (N / 2)
         #y = ifft((Y) * (N / 2))
-        print('y',np.size(y),y,'y')
+        #print('y',np.size(y),y,'y')
         plt.plot(y)
         plt.plot(Y)
         plt.show()
@@ -158,8 +160,13 @@ def force_fft_symmetry(X):
     plt.title('force test')
     plt.show()
     X_start_flipped = np.flipud(X[1:np.floor_divide(len(X), 2) + 1])
+    plt.plot(X_start_flipped)
+    plt.title('force test')
+    plt.show()
     Y[np.ceil(len(X) / 2).astype(int):] = np.real(X_start_flipped) - 1j * np.imag(X_start_flipped)
-
+    plt.plot(Y)
+    plt.title('force test')
+    plt.show()
     return Y
 
 # Define the parameters
@@ -167,7 +174,8 @@ f_s = 250              # Sampling frequency
 N = 250                 # Number of samples (for 1 second)
 
 # Generate multisine between 1 Hz and 2 kHz
-y = multisine([1, 100], f_s, N,PhaseResponse='Schroeder',TimeDomain=True)
+y = multisine([1, 100], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=False,InitialPhase=0,StartAtZero=True)
+
 
 T=N/f_s
 # Plot
@@ -176,7 +184,6 @@ f = np.linspace(0,N,f_s)
 print(np.max(f),'f', np.max(t) , 't ')
 
 plt.figure(figsize=(10, 6))
-
 plt.subplot(211)
 plt.plot(t, y)
 plt.xlabel('Time (s)')
@@ -191,12 +198,6 @@ plt.xlabel('Frequency (Hz)')
 plt.tight_layout()
 plt.show()
 
-def rms_flat(a):
-    """
-    Return the root mean square of all the elements of *a*, flattened out.
-    """
-    return np.sqrt(np.mean(np.absolute(a)**2))
 
-
-crest_factor = 20*np.log10(np.amax(abs(y))/rms_flat(y))
-print('Crest factor: {0:.2f} dB'.format(crest_factor))
+print('Crest factor: {0:.2f} dB'.format(20*np.log10(crest_fac(y))))
+print('Crest factor: {0:.2f} '.format(crest_fac(y)))
