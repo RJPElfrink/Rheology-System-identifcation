@@ -25,28 +25,14 @@ def DB (arr):
 
     return decibel
 
+def DB_test(arr):
+    return 20 * np.log10(np.abs(arr))
+
 def rms(arr):
     # Return the root mean square of all the elements of arr, flattened out.
     rms = np.sqrt(np.mean(np.square(abs(arr))))
     return rms
 
-def crest_fac(frequency):
-    return (max(abs(frequency)))/rms(frequency)
-
-def phase_lin(N,f_s,Tau,t):
-    return -Tau*2*np.pi*(t/N)*f_s
-
-def phase_rand():
-    return np.pi*random()
-
-def phase_schroeder():
-    return
-
-def multi_sine():
-    return
-
-import numpy as np
-import matplotlib.pyplot as plt
 
 def multisine(frequency_limits, f_s, N, **kwargs):
     f_0 = f_s / N
@@ -96,7 +82,7 @@ def multisine(frequency_limits, f_s, N, **kwargs):
             phase = schroeder_phases(N, index_vector, NN, mag, initial_phase,lower_lim,upper_lim)
         elif phase_response == 'ZeroPhase':
             phase = np.zeros(N)
-        elif phase_response == 'NormalDistribution':
+        elif phase_response == 'Random':
             phase = np.random.randn(N)
         else:
             raise ValueError('Phase Response string must be Schroeder, ZeroPhase, or NormalDistribution.')
@@ -112,8 +98,8 @@ def multisine(frequency_limits, f_s, N, **kwargs):
         t=np.linspace(0,T,N,endpoint=False)
         for nn in range(NN):
             mm = index_vector[nn]
-            #y += np.sqrt(mag[mm - 1] / 2) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
-            y += (mag[mm - 1]) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
+            y += np.sqrt(mag[mm - 1] / 2) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
+            #y += (mag[mm - 1]) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
         print('max', np.max(y), 'min', np.min(y),'average',np.average(y))
     else:
         #Y = np.sqrt(mag / 2) * np.exp(1j * phase)
@@ -123,9 +109,9 @@ def multisine(frequency_limits, f_s, N, **kwargs):
         y = 2*np.real(ifft((Y)))
 
         #print('y',np.size(y),y,'y')
-        plt.plot(y)
-        plt.plot(Y)
-        plt.show()
+        #plt.plot(y)
+        #plt.plot(Y)
+        #plt.show()
 
 
     if normalise:
@@ -167,48 +153,39 @@ def schroeder_phases(N,index_vector, NN,  magnitude, p1,lower_lim,upper_lim):
 
 def force_fft_symmetry(X):
     Y = X.copy()
-    #plt.plot(Y)
-    #plt.title('force test')
-    #plt.show()
     X_start_flipped = np.flipud(X[1:np.floor_divide(len(X), 2) + 1])
-    #plt.plot(X_start_flipped)
-    #plt.title('force test')
-    #plt.show()
     Y[np.ceil(len(X) / 2).astype(int):] = np.real(X_start_flipped) - 1j * np.imag(X_start_flipped)
-    #plt.plot(Y)
-    #plt.title('force test')
-    #plt.show()
     return Y
 
 # Define the parameters
-f_s = 250              # Sampling frequency
-N = 250                 # Number of samples (for 1 second)
+#f_s = 250              # Sampling frequency
+#N = 250                 # Number of samples (for 1 second)
 
 # Generate multisine between 1 Hz and 2 kHz
-y = multisine([1, 100], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
+#y = multisine([1, 100], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
 
 
-T=N/f_s
+#T=N/f_s
 # Plot
-t = np.linspace(0,T,N,endpoint=False)
-f = np.linspace(0,N,f_s)
-print(np.max(f),'f', np.max(t) , 't ')
+#t = np.linspace(0,T,N,endpoint=False)
+#f = np.linspace(0,N,f_s)
+#print(np.max(f),'f', np.max(t) , 't ')
 
-plt.figure(figsize=(10, 6))
-plt.subplot(211)
-plt.plot(t, y)
-plt.xlabel('Time (s)')
-plt.ylabel('Voltage (V)')
+#plt.figure(figsize=(10, 6))
+#plt.subplot(211)
+#plt.plot(t, y)
+#plt.xlabel('Time (s)')
+#plt.ylabel('Voltage (V)')
 
-plt.subplot(212)
-plt.semilogx(f, 20 * np.log10(np.abs(fft(y))))
-plt.xlim([1, f_s / 2])
-plt.ylabel('Amplitude (dB)')
-plt.xlabel('Frequency (Hz)')
+#plt.subplot(212)
+#plt.semilogx(f, 20 * np.log10(np.abs(fft(y))))
+#plt.xlim([1, f_s / 2])
+#plt.ylabel('Amplitude (dB)')
+#plt.xlabel('Frequency (Hz)')
 
-plt.tight_layout()
-plt.show()
+#plt.tight_layout()
+#plt.show()
 
 
-print('Crest factor: {0:.2f} dB'.format(20*np.log10(crest_fac(y))))
-print('Crest factor: {0:.2f} '.format(crest_fac(y)))
+#print('Crest factor: {0:.2f} dB'.format(20*np.log10(crest_fac(y))))
+#print('Crest factor: {0:.2f} '.format(crest_fac(y)))
