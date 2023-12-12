@@ -93,7 +93,7 @@ def multisine(frequency_limits, f_s, N, **kwargs):
 
     if isinstance(phase_response, str):
         if phase_response == 'Schroeder':
-            phase = schroeder_phases(NN, N, index_vector, mag, initial_phase)
+            phase = schroeder_phases(N, index_vector, NN, mag, initial_phase,lower_lim,upper_lim)
         elif phase_response == 'ZeroPhase':
             phase = np.zeros(N)
         elif phase_response == 'NormalDistribution':
@@ -118,8 +118,10 @@ def multisine(frequency_limits, f_s, N, **kwargs):
     else:
         #Y = np.sqrt(mag / 2) * np.exp(1j * phase)
         Y = (mag) * np.exp(1j * phase)
-        y = ifft(force_fft_symmetry(Y)) * (N / 2)
-        #y = ifft((Y) * (N / 2))
+        #y = ifft(force_fft_symmetry(Y)) * (N / 2)
+        #print('y',np.size(y),y,'y')
+        y = 2*np.real(ifft((Y)))
+
         #print('y',np.size(y),y,'y')
         plt.plot(y)
         plt.plot(Y)
@@ -142,31 +144,40 @@ def multisine(frequency_limits, f_s, N, **kwargs):
     return y
 
 
-def schroeder_phases(n_components, N, index_vector, magnitude, p1):
+def schroeder_phases(N,index_vector, NN,  magnitude, p1,lower_lim,upper_lim):
     phase = np.zeros(N)
-
     phase[1] = p1
 
-    for nn in range(2, n_components + 1):
+    for nn in range(2, NN + 1):
         ll = np.arange(1, nn)
         phase[index_vector[nn - 1] - 1] = phase[1] - 2 * np.pi * np.sum((nn - ll) * magnitude[index_vector[ll] - 1])
+
+
+    phase = np.zeros(N)
+    phase[1] = p1
+
+    #zero array of the total amount of points, the first values equal the phase frequencies
+    #design of the phase: sigma= -j(j-1)*pi/F
+    # can not yet figure out to implement the p1 phase and not exceed the amount of frequncies analyzed, cheated this by settin [NN]=0
+    phase[1:NN+1] = -np.arange(lower_lim, upper_lim+1) * np.arange(lower_lim-1, upper_lim) * np.pi / NN
+    phase[NN]=0
 
     return phase
 
 
 def force_fft_symmetry(X):
     Y = X.copy()
-    plt.plot(Y)
-    plt.title('force test')
-    plt.show()
+    #plt.plot(Y)
+    #plt.title('force test')
+    #plt.show()
     X_start_flipped = np.flipud(X[1:np.floor_divide(len(X), 2) + 1])
-    plt.plot(X_start_flipped)
-    plt.title('force test')
-    plt.show()
+    #plt.plot(X_start_flipped)
+    #plt.title('force test')
+    #plt.show()
     Y[np.ceil(len(X) / 2).astype(int):] = np.real(X_start_flipped) - 1j * np.imag(X_start_flipped)
-    plt.plot(Y)
-    plt.title('force test')
-    plt.show()
+    #plt.plot(Y)
+    #plt.title('force test')
+    #plt.show()
     return Y
 
 # Define the parameters
@@ -174,7 +185,7 @@ f_s = 250              # Sampling frequency
 N = 250                 # Number of samples (for 1 second)
 
 # Generate multisine between 1 Hz and 2 kHz
-y = multisine([1, 100], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=False,InitialPhase=0,StartAtZero=True)
+y = multisine([1, 100], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
 
 
 T=N/f_s
