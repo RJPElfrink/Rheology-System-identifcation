@@ -111,7 +111,7 @@ fdsplit_new=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,Ntotal,endpoint=Tr
 
 # MULTISINE
 # Generate multisine between 1 Hz and 2 kHz
-u_multi = rhs.multisine([k1, k2], f_s, N,PhaseResponse='Random',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
+u_multi = rhs.multisine([k1, k2], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
 U_multi=fft(u_multi)
 
 
@@ -159,8 +159,12 @@ plt.show()
 
 Visualplots.maxwel_plot(t_DT,np.squeeze(sol_multi.y))
 
+print(G_multi)
+
 plt.figure()
-plt.semilogx(fd, (G_multi))  # Bode phase plot)
+plt.semilogx(fd, rhs.DB_test(np.imag(G_multi)),fd, rhs.DB_test(np.real(G_multi)),)
+plt.ylabel('Amplitude (dB)')
+plt.xlabel('Frequency (Hz) test')
 plt.show()
 
 #G=g/((1j*f)+1/L)
@@ -168,7 +172,11 @@ s1 = signal.lti([g_constant], [1, 1/Lambda_constant])
 w, mag, phase = s1.bode()
 plt.figure()
 plt.semilogx(w, mag)    # Bode magnitude plot
+plt.ylabel('Amplitude (dB)')
+plt.xlabel('Frequency (Hz) test')
 plt.figure()
 plt.semilogx(w, phase)  # Bode phase plot
+plt.ylabel('Phase')
+plt.xlabel('Frequency (Hz) test')
 plt.show()
 
