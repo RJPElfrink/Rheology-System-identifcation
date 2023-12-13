@@ -4,7 +4,7 @@ from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 from scipy.fft import fft,fftshift,ifft,ifftshift,fftfreq
 from scipy import signal
-import Rheosys as rhs
+import rheosys as rhs
 import Visualplots
 
 
