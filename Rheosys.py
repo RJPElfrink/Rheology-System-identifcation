@@ -33,6 +33,9 @@ def rms(arr):
     rms = np.sqrt(np.mean(np.square(abs(arr))))
     return rms
 
+def crest_fac(frequency):
+    return (max(abs(frequency)))/rms(frequency)
+
 
 def multisine(frequency_limits, f_s, N, **kwargs):
     f_0 = f_s / N
