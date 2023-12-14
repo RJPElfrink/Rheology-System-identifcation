@@ -14,18 +14,8 @@ def sine (period):
 def cos (period):
     return np.cos(period)
 
-def DB (arr):
-    ref = 1
-    decibel=[]
-    for i in arr:
-        if i!=0:
-            decibel.append(20 * np.log10(abs(i) / ref))
-        else:
-            decibel.append(-60)
 
-    return decibel
-
-def DB_test(arr):
+def DB(arr):
     return 20 * np.log10(np.abs(arr))
 
 def rms(arr):
@@ -37,7 +27,34 @@ def crest_fac(frequency):
     return (max(abs(frequency)))/rms(frequency)
 
 
-def multisine(frequency_limits, f_s, N, **kwargs):
+def multisine_advanced(frequency_limits, f_s, N, **kwargs):
+
+    def schroeder_phases(N,index_vector, NN,  magnitude, p1,lower_lim,upper_lim):
+        phase = np.zeros(N)
+        phase[1] = p1
+
+        for nn in range(2, NN + 1):
+            ll = np.arange(1, nn)
+            phase[index_vector[nn - 1] - 1] = phase[1] - 2 * np.pi * np.sum((nn - ll) * magnitude[index_vector[ll] - 1])
+
+
+        phase = np.zeros(N)
+        phase[1] = p1
+
+        #zero array of the total amount of points, the first values equal the phase frequencies
+        #design of the phase: sigma= -j(j-1)*pi/F
+        # can not yet figure out to implement the p1 phase and not exceed the amount of frequncies analyzed, cheated this by settin [NN]=0
+        phase[1:NN+1] = -np.arange(lower_lim, upper_lim+1) * np.arange(lower_lim-1, upper_lim) * np.pi / NN
+        phase[NN]=0
+
+        return phase
+
+    def force_fft_symmetry(X):
+        Y = X.copy()
+        X_start_flipped = np.flipud(X[1:np.floor_divide(len(X), 2) + 1])
+        Y[np.ceil(len(X) / 2).astype(int):] = np.real(X_start_flipped) - 1j * np.imag(X_start_flipped)
+        return Y
+
     f_0 = f_s / N
     T=N/f_s
     lower_lim=round(frequency_limits[0] / f_0) + 1
@@ -132,63 +149,41 @@ def multisine(frequency_limits, f_s, N, **kwargs):
 
     return y
 
+def run_multi_advanced():
+    # Define the parameters
+    f_s = 4800              # Sampling frequency
+    N = 4800                 # Number of samples (for 1 second)
 
-def schroeder_phases(N,index_vector, NN,  magnitude, p1,lower_lim,upper_lim):
-    phase = np.zeros(N)
-    phase[1] = p1
-
-    for nn in range(2, NN + 1):
-        ll = np.arange(1, nn)
-        phase[index_vector[nn - 1] - 1] = phase[1] - 2 * np.pi * np.sum((nn - ll) * magnitude[index_vector[ll] - 1])
-
-
-    phase = np.zeros(N)
-    phase[1] = p1
-
-    #zero array of the total amount of points, the first values equal the phase frequencies
-    #design of the phase: sigma= -j(j-1)*pi/F
-    # can not yet figure out to implement the p1 phase and not exceed the amount of frequncies analyzed, cheated this by settin [NN]=0
-    phase[1:NN+1] = -np.arange(lower_lim, upper_lim+1) * np.arange(lower_lim-1, upper_lim) * np.pi / NN
-    phase[NN]=0
-
-    return phase
+    # Generate multisine between 1 Hz and 2 kHz
+    y = multisine_advanced([1, 500], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
 
 
-def force_fft_symmetry(X):
-    Y = X.copy()
-    X_start_flipped = np.flipud(X[1:np.floor_divide(len(X), 2) + 1])
-    Y[np.ceil(len(X) / 2).astype(int):] = np.real(X_start_flipped) - 1j * np.imag(X_start_flipped)
-    return Y
+    T=N/f_s
+    # Plot
+    t = np.linspace(0,T,N,endpoint=False)
+    f = np.linspace(0,N,f_s)
+    print(np.max(f),'f', np.max(t) , 't ')
 
-# Define the parameters
-#f_s = 250              # Sampling frequency
-#N = 250                 # Number of samples (for 1 second)
+    plt.figure(figsize=(10, 6))
+    plt.subplot(211)
+    plt.plot(t, y)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Voltage (V)')
 
-# Generate multisine between 1 Hz and 2 kHz
-#y = multisine([1, 100], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
+    plt.subplot(212)
+    plt.semilogx(f, 20 * np.log10(np.abs(fft(y))))
+    plt.xlim([1, f_s / 2])
+    plt.ylabel('Amplitude (dB)')
+    plt.xlabel('Frequency (Hz)')
 
-
-#T=N/f_s
-# Plot
-#t = np.linspace(0,T,N,endpoint=False)
-#f = np.linspace(0,N,f_s)
-#print(np.max(f),'f', np.max(t) , 't ')
-
-#plt.figure(figsize=(10, 6))
-#plt.subplot(211)
-#plt.plot(t, y)
-#plt.xlabel('Time (s)')
-#plt.ylabel('Voltage (V)')
-
-#plt.subplot(212)
-#plt.semilogx(f, 20 * np.log10(np.abs(fft(y))))
-#plt.xlim([1, f_s / 2])
-#plt.ylabel('Amplitude (dB)')
-#plt.xlabel('Frequency (Hz)')
-
-#plt.tight_layout()
-#plt.show()
+    plt.tight_layout()
+    plt.show()
 
 
-#print('Crest factor: {0:.2f} dB'.format(20*np.log10(crest_fac(y))))
-#print('Crest factor: {0:.2f} '.format(crest_fac(y)))
+    print('Crest factor: {0:.2f} dB'.format(20*np.log10(crest_fac(y))))
+    print('Crest factor: {0:.2f} '.format(crest_fac(y)))
+
+
+    return plt.show()
+
+#run_multi_advanced()

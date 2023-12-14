@@ -4,7 +4,7 @@ from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 from scipy.fft import fft,fftshift,ifft,ifftshift,fftfreq
 from scipy import signal
-import rheosys as rhs
+import Rheosys as rhs
 import Visualplots
 
 
@@ -116,59 +116,7 @@ fdsplit_new=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,Ntotal,endpoint=Tr
 #Visualplots.maxwel_plot(t_Trans,y_new,title='ODE Maxwell repeated signal')
 #Visualplots.maxwel_plot(t_Trans,y_dif,title='ODE Maxwell difference between transient and repeated signal')
 
-
-
 # MULTISINE
-# Generate multisine between 1 Hz and 2 kHz
-u_multi = rhs.multisine([k1, k2], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
-U_multi=fft(u_multi)
-
-u_interp_multi=interp1d(t_DT,u_multi,kind=kind)
-U_DT_multi = u_interp_multi(t_CT)
-
-# Solving of the maxwell differentail equation
-def gamma_dot_multi(t):
-    return u_interp_multi(t)
-
-# tau_dot=G*gamma_dot(t) -1/lambda *tau
-def ODE_maxwell_multi(t, tau, L,G):
-    #L,G=args
-    return G*gamma_dot_multi(t) - tau/L
-
-sol_multi = solve_ivp(ODE_maxwell_multi, [0, t_DT[-1]], [0], args=(Lambda_constant,g_constant), t_eval=t_DT)
-
-y_multi=np.squeeze(sol_multi.y)
-Y_multi=fft(y_multi)
-G_multi=Y_multi/U_multi
-
-
-
-plt.figure(figsize=(10, 6))
-plt.subplot(211)
-plt.plot(t_DT, u_multi)
-plt.xlabel('Time (s)')
-plt.ylabel('Voltage (V)')
-
-
-plt.subplot(212)
-plt.semilogx(fd, rhs.DB_test(U_multi))
-plt.xlim([1, f_s / 2])
-plt.ylabel('Amplitude (dB)')
-plt.xlabel('Frequency (Hz) test')
-
-plt.tight_layout()
-plt.show()
-
-Visualplots.input_reconstructer_sampling(t_DT,u_multi,t_CT,U_DT_multi)
-
-#Visualplots.input_signal_sample(t_DT,U_DT_multi,t_CT,u_multi)
-#Visualplots.input_stem_split_freqency(f_0,Udsplit,fdsplit)
-#Visualplots.input_line_frequency(fd,Ud)
-#Visualplots.input_reconstructer_sampling(t_DT,u_DT,t_CT,U_DT_int)
-
-Visualplots.maxwel_plot(t_DT,np.squeeze(sol_multi.y))
-
-
 
 #G=g/((1j*f)+1/L)
 s1 = signal.lti([g_constant], [1, 1/Lambda_constant])
@@ -183,8 +131,4 @@ plt.ylabel('Phase')
 plt.xlabel('Frequency (Hz) test')
 plt.show()
 
-plt.figure()
-plt.semilogx(fd, rhs.DB_test(np.imag(G_multi)),fd, rhs.DB_test(np.real(G_multi)),)
-plt.ylabel('Amplitude (dB)')
-plt.xlabel('Frequency (Hz) test')
-plt.show()
+

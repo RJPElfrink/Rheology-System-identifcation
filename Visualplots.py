@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import rheosys as rhs
+import Rheosys as rhs
 
 def input_signal_sample (t_DT,u_DT,t_CT,u_CT,title=str('Continuous signal with sampled points')):
     #Plot with sample points and continous signal
