@@ -2,83 +2,143 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
-from scipy.fft import fft,fftshift,ifft,ifftshift,fftfreq
+from scipy.fft import fft,fftshift,ifft,ifftshift,rfft,rfftfreq,irfft
 from scipy import signal
 import Rheosys as rhs
 import Visualplots
+import random
+
+#andom.seed(10)
+
+f_s =480                                         # Sample frequency
+N= 480                                       # Number of points
+
+Lambda_constant=1.5                              # Value for lambda n/g
+g_constant=2.5                                   # Value for spring constant g
+
+J1=1                                             # Starting frequency multisine
+J2=239                                          # Stopping freqency multisine
+
+phi= 0                                           # starting phase
+kind=0                                           # interpolation kind
+
+NBp = 1                                          # Number of block points
+Ntotal=N*NBp                                     # Number of transient points
 
 
-# To avoid aliasing and leakage, it is advised to determine the N (number of points in the window) and f_s (sampling frequency)
-# From that calculate
-# f_0=f_s/N = 1/T = 1/T_s*N
-# line number k=N*f/f_s
-# AVOID leakage: f_s/f_0 must be an integer
-
-#define excitation varibales
-f_s =480                   # Sample frequency
-N= 480                    # Number of points
-
-k1=1                     # Starting frequency multisine
-k2=50                   # Stopping freqency multisine
-
-phi= 0                # signal phase
-kind=0              #interpolation kind
-
-NBp = 6                  # Number of block points
-Ntotal=N*NBp             # Number of transient points
-
-
-Up=100                  # Upsampling for plots
-
-Lambda_constant=1.5                   # Value for lambda n/g
-g_constant=2.5                   # Value for spring constant g
+Up=100                                           # Upsampling for plots
 
 # Calculation of time window
-f_0 = 5*f_s/N                 # Excitation frequency
-k_value= (N*f_0)/f_s
-T = N/f_s                 # Time length
-T_s = 1/f_s             # Sampling time
-t_DT= np.linspace(0, T,N,endpoint=False)        # Discrete-time vector
-t_CT= np.linspace(0, t_DT[-1], N*Up,endpoint=True)  # Continuous-time vector
+f_0 = f_s/N                                      # Excitation frequency
+T = N/f_s                                        # Time length
+t= np.linspace(0, T,N,endpoint=False)            # Time vector
+t_CT= np.linspace(0, t[-1], N*Up,endpoint=True)  # Over sampling continuous-time vector
+f=np.linspace(0,f_s,N,endpoint=False)            # Frequency range
 
-u_DT=rhs.sine(2*np.pi*f_0*t_DT+phi)
+# Calculate the multisine signal with selected phase and normalization
+# Phase options: Schroeder, Random, Zero, Linear, Newman, Rudin
+u_multi=rhs.multisine(N,f_s,[J1,J2],phase_response='Zero',normalize='Amplitude',time_domain=True)
+
+
+# Reconstruction of signal between sample points, use of scipy interpolation, kind is 0,2 and all odd numbers
+u_multi_t_int=interp1d(t,u_multi,kind=kind)
+u_multi_int = u_multi_t_int(t)
+
+# Solving of the maxwell differentail equation
+def gamma_dot_multi(t):
+    return u_multi_t_int(t)
+
+# tau_dot=G*gamma_dot(t) -1/lambda *tau
+def ODE_maxwell(t, tau, L,G):
+    return G*gamma_dot_multi(t) - tau/L
+
+sol_multi = solve_ivp(ODE_maxwell, [0, t[-1]], [0], args=(Lambda_constant,g_constant), t_eval=t)
+
+y_multi=np.squeeze(sol_multi.y)
+Y_multi=fft(y_multi)
+U_multi=fft(u_multi_int)
+G_multi=Y_multi/U_multi
+U_multi=fft(u_multi)
+
+print('Crest factor: {0:.2f} dB'.format(rhs.DB(rhs.crest_fac(u_multi))))
+print('Crest factor: {0:.2f} '.format(rhs.crest_fac(u_multi)))
+
+# Figure of the created multisine signal in time domain
+plt.plot(t,u_multi)
+plt.ylabel('Amplitude (dB)')
+plt.xlabel('Time (s)')
+plt.show()
+
+# Figure of the created multisine signals frequency domain in Decibel
+plt.plot(f,rhs.DB(U_multi))
+plt.xlim([0, f_s / 2])
+plt.ylabel('Amplitude (dB)')
+plt.xlabel('Frequency (Hz)')
+plt.show()
+
+# plot the reconstructed zero-order-hold signal over the original signal
+Visualplots.input_reconstructer_sampling(t,u_multi,t,u_multi_int)
+
+# plot the maxwel solution over time
+Visualplots.maxwel_plot(t,np.squeeze(sol_multi.y))
+
+# Transfer function of the maxwell system
+# G=g/((1j*f)+1/L)
+s1 = signal.lti([g_constant], [1, 1/Lambda_constant])
+
+# Transfer function plots of the maxwel system
+w, mag, phase = s1.bode()
+plt.figure()
+plt.semilogx(w, mag)    # Bode magnitude plot
+plt.ylabel('Amplitude (dB)')
+plt.xlabel('Frequency (Hz) test')
+plt.figure()
+plt.semilogx(w, phase)  # Bode phase plot
+plt.ylabel('Phase')
+plt.xlabel('Frequency (Hz) test')
+plt.show()
+
+
+
+### SINGLE SINE CALCULATIONS ###
+u_single=rhs.sine(2*np.pi*f_0*t+phi)
 u_CT=rhs.sine(2*np.pi*f_0*t_CT+phi)
 
-crest_sine=rhs.crest_fac(u_DT)
+crest_sine=rhs.crest_fac(u_single)
 ### Calculation of fourier transform in frequency distribution
-Ud=(np.abs(fft(u_DT)))                         # DFT input signal
+Ud=(np.abs(fft(u_single)))                        # DFT input signal
 Udsplit=fftshift(Ud)                             # DFT input signal zero split
 fd=np.linspace(0,f_s,N,endpoint=False)                             # DFT frequency
 fdsplit=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,N,endpoint=False)    # DFT frequency zero split
 
 # Reconstruction of signal between sample points, use of scipy interpolation, kind is 0,2 and all odd numbers
-u_interp=interp1d(t_DT,u_DT,kind=kind)
-U_DT_int = u_interp(t_DT)
+u_single_t=interp1d(t,u_single,kind=kind)
+u_single_int = u_single_t(t)
 
 # Solving of the maxwell differentail equation
 def gamma_dot(t):
-    return u_interp(t)
+    return u_single_t(t)
 
 # tau_dot=G*gamma_dot(t) -1/lambda *tau
 def ODE_maxwell(t, tau, L,G):
     #L,G=args
     return G*gamma_dot(t) - tau/L
 
-sol_Block = solve_ivp(ODE_maxwell, [0, t_DT[-1]], [0], args=(Lambda_constant,g_constant), t_eval=t_DT)
+sol_Block = solve_ivp(ODE_maxwell, [0, t[-1]], [0], args=(Lambda_constant,g_constant), t_eval=t)
 
 y_block=np.squeeze(sol_Block.y)
 Y_block=fft(y_block)
-U_block=fft(U_DT_int)
+U_block=fft(u_single_int)
 G_block=Y_block/U_block
 
 #plt.plot(fd,G_block)
 #plt.show()
 
-#Visualplots.input_signal_sample(t_DT,u_DT,t_CT,u_CT)
+#Visualplots.input_signal_sample(t,u_single,t_CT,u_CT)
 #Visualplots.input_stem_split_freqency(f_0,Udsplit,fdsplit)
 #Visualplots.input_line_frequency(fd,Ud)
-#Visualplots.input_reconstructer_sampling(t_DT,u_DT,t_CT,U_DT_int)
-#Visualplots.maxwel_plot(t_DT,np.squeeze(sol_Block.y))
+#Visualplots.input_reconstructer_sampling(t,u_single,t_CT,u_single_int)
+#Visualplots.maxwel_plot(t,np.squeeze(sol_Block.y))
 
 # Calculations of the extended signal to remove the transient part
 # and repeat the signal to the full time window of N*NBp
@@ -118,17 +178,5 @@ fdsplit_new=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,Ntotal,endpoint=Tr
 
 # MULTISINE
 
-#G=g/((1j*f)+1/L)
-s1 = signal.lti([g_constant], [1, 1/Lambda_constant])
-w, mag, phase = s1.bode()
-plt.figure()
-plt.semilogx(w, mag)    # Bode magnitude plot
-plt.ylabel('Amplitude (dB)')
-plt.xlabel('Frequency (Hz) test')
-plt.figure()
-plt.semilogx(w, phase)  # Bode phase plot
-plt.ylabel('Phase')
-plt.xlabel('Frequency (Hz) test')
-plt.show()
 
 

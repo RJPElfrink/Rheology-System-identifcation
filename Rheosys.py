@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sc
 import matplotlib.pyplot as plt
 from random import random
-from scipy.fft import fft,fftshift,ifft,ifftshift
+from scipy.fft import fft,fftshift,ifft,ifftshift,irfft,rfft,rfftfreq
 
 
 #Excitation signals used as input for the analysis,
@@ -14,176 +14,154 @@ def sine (period):
 def cos (period):
     return np.cos(period)
 
-
 def DB(arr):
     return 20 * np.log10(np.abs(arr))
 
+# Return the root mean square of all the elements in the array, flattened out
 def rms(arr):
-    # Return the root mean square of all the elements of arr, flattened out.
     rms = np.sqrt(np.mean(np.square(abs(arr))))
     return rms
 
+#Calculation of the crest factor of the signal
 def crest_fac(frequency):
     return (max(abs(frequency)))/rms(frequency)
 
-
-def multisine_advanced(frequency_limits, f_s, N, **kwargs):
-
-    def schroeder_phases(N,index_vector, NN,  magnitude, p1,lower_lim,upper_lim):
-        phase = np.zeros(N)
-        phase[1] = p1
-
-        for nn in range(2, NN + 1):
-            ll = np.arange(1, nn)
-            phase[index_vector[nn - 1] - 1] = phase[1] - 2 * np.pi * np.sum((nn - ll) * magnitude[index_vector[ll] - 1])
-
-
-        phase = np.zeros(N)
-        phase[1] = p1
-
-        #zero array of the total amount of points, the first values equal the phase frequencies
-        #design of the phase: sigma= -j(j-1)*pi/F
-        # can not yet figure out to implement the p1 phase and not exceed the amount of frequncies analyzed, cheated this by settin [NN]=0
-        phase[1:NN+1] = -np.arange(lower_lim, upper_lim+1) * np.arange(lower_lim-1, upper_lim) * np.pi / NN
-        phase[NN]=0
-
-        return phase
-
-    def force_fft_symmetry(X):
-        Y = X.copy()
-        X_start_flipped = np.flipud(X[1:np.floor_divide(len(X), 2) + 1])
-        Y[np.ceil(len(X) / 2).astype(int):] = np.real(X_start_flipped) - 1j * np.imag(X_start_flipped)
-        return Y
-
-    f_0 = f_s / N
-    T=N/f_s
-    lower_lim=round(frequency_limits[0] / f_0) + 1
-    upper_lim=round(frequency_limits[1] / f_0) + 1
-    f_index = np.arange(1, lower_lim), np.arange(1, upper_lim)
-
-    if np.any(f_index[1] > N / 2):
-        raise ValueError('Frequency limits must be beneath Nyquist.')
-
-    # Freqency list of the defined amount of frequencies, with length NN
-    index_vector = np.arange(f_index[0][0], f_index[1][-1] + 1)
-    NN = len(index_vector)
-
-
-    mag = kwargs.get('MagnitudeResponse', np.zeros(N))
-    phase_response = kwargs.get('PhaseResponse', 'Schroeder')
-    start_at_zero = kwargs.get('StartAtZero', True)
-    normalise = kwargs.get('Normalise', True)
-    time_domain = kwargs.get('TimeDomain', False)
-    initial_phase = kwargs.get('InitialPhase', 0)
-
-    # Magnitude vector of the amount of points (N) in one decade, where the first points are non zero
-    if not np.any(mag):
-        mag = np.zeros(N)
-        mag[index_vector - 1] = 1.0 / len(index_vector)
-
-    else:
-        if len(mag) != N:
-            raise ValueError('Magnitude response must be the same length as the desired signal.')
-
-        mag = mag ** 2
-
-        full_indices = np.arange(1, N + 1)
-        zero_value_indices = np.setdiff1d(full_indices, index_vector)
-
-        if np.any(mag[zero_value_indices]):
-            print('Non-zero magnitude values present outside of frequency limits.')
-            mag[zero_value_indices] = np.zeros_like(zero_value_indices)
-
-        if np.sum(mag[index_vector - 1]) != 1:
-            mag[index_vector - 1] = mag[index_vector - 1] / np.sum(mag[index_vector - 1])
-
-    if isinstance(phase_response, str):
-        if phase_response == 'Schroeder':
-            phase = schroeder_phases(N, index_vector, NN, mag, initial_phase,lower_lim,upper_lim)
-        elif phase_response == 'ZeroPhase':
-            phase = np.zeros(N)
-        elif phase_response == 'Random':
-            phase = np.random.randn(N)
-        else:
-            raise ValueError('Phase Response string must be Schroeder, ZeroPhase, or NormalDistribution.')
-    else:
-        phase = phase_response
-        if np.any(phase.shape != (1, N)):
-            raise ValueError('Phase response must be 1 x N.')
-
-    # switch between time domain or frequencie domain
-    if time_domain:
-        # if calculating in time domain
-        y = np.zeros(N)
-        t=np.linspace(0,T,N,endpoint=False)
-        for nn in range(NN):
-            mm = index_vector[nn]
-            y += np.sqrt(mag[mm - 1] / 2) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
-            #y += (mag[mm - 1]) * np.sin(2 * np.pi * f_0 * (mm - 1) * t + phase[mm - 1])
-        print('max', np.max(y), 'min', np.min(y),'average',np.average(y))
-    else:
-        #Y = np.sqrt(mag / 2) * np.exp(1j * phase)
-        Y = (mag) * np.exp(1j * phase)
-        #y = ifft(force_fft_symmetry(Y)) * (N / 2)
-        #print('y',np.size(y),y,'y')
-        y = 2*np.real(ifft((Y)))
-
-        #print('y',np.size(y),y,'y')
-        #plt.plot(y)
-        #plt.plot(Y)
-        #plt.show()
-
-
-    if normalise:
-        y = y / np.max(np.abs(y))
-
-    if start_at_zero:
-        y_sign = y > 0
-        zero_inds = np.where(y_sign[:-1] != y_sign[1:])[0]
-
-        zero_grad = np.abs(y[zero_inds] - y[zero_inds + 1])
-        min_ind = np.argmin(zero_grad)
-
-        y_wrapped = np.concatenate((y[zero_inds[min_ind]:], y[:zero_inds[min_ind]]))
-        y = y_wrapped
-
+# Normalization of the signals amlitude, between -1 and 1
+def normalize_amp(y):
+    y = y / np.max(np.abs(y))
     return y
 
-def run_multi_advanced():
-    # Define the parameters
-    f_s = 4800              # Sampling frequency
-    N = 4800                 # Number of samples (for 1 second)
+# Multisine phase generation of phi=-j(j-1)*pi/F
+# Where F is the total amount of frequencies
+def schroeder_phase(j_range,J):
+    phase=[]
+    for i in range(len(j_range)):
+        x=-1*(j_range[i])*(j_range[i-1])
+        phase = np.append(phase, (x*np.pi)/J)
 
-    # Generate multisine between 1 Hz and 2 kHz
-    y = multisine_advanced([1, 500], f_s, N,PhaseResponse='Schroeder',TimeDomain=False,Normalise=True,InitialPhase=0,StartAtZero=True)
+    phase[0]=0
+
+    return phase
+
+# Multisine phase generation of phi=-Tau*2*pi*f_s*(j/N)
+def linear_phase(tau,j_range,f_s,N):
+    phase=np.zeros(len(j_range))
+
+    for i in range(len(j_range)):
+        phase[i]=-tau*2*np.pi*f_s*(N/j_range[i])
+
+    return phase
+
+# Multisine phase generation Noise-like, with crest factor under 6 dB when N is a power of 2.
+def rudin_phase(J):
+
+    def rudinshapiro(J):
+        #Return first N terms of Rudin-Shapiro sequence.
+        def hamming(x):
+
+            return bin(x).count('1')
+
+        out = np.empty(J, dtype=int)
+        for n in range(J):
+            b = hamming(n << 1 & n)
+            a = (-1)**b
+            out[n] = a
+
+        return out
 
 
-    T=N/f_s
-    # Plot
-    t = np.linspace(0,T,N,endpoint=False)
-    f = np.linspace(0,N,f_s)
-    print(np.max(f),'f', np.max(t) , 't ')
+    phase = -np.pi*rudinshapiro(J)
+    phase[phase == -np.pi] = 0
 
-    plt.figure(figsize=(10, 6))
-    plt.subplot(211)
-    plt.plot(t, y)
-    plt.xlabel('Time (s)')
-    plt.ylabel('Voltage (V)')
+    return phase
 
-    plt.subplot(212)
-    plt.semilogx(f, 20 * np.log10(np.abs(fft(y))))
-    plt.xlim([1, f_s / 2])
-    plt.ylabel('Amplitude (dB)')
-    plt.xlabel('Frequency (Hz)')
+def newman_phase(J,j1):
 
-    plt.tight_layout()
-    plt.show()
+    #Sweep-like phase,
+
+    k = np.arange(J) + j1
+    phase = (np.pi*(k-1)**2)/J
+    return phase
+
+def multisine(N, f_s, frequency_limits, A_vect=None, Tau=None, **kwargs):
+
+    f_0 = f_s/N                                      # Excitation frequency
+    T = N/f_s                                        # Time length
+    u = np.zeros(N)                                  # Signal vector
+
+    j1=np.floor(frequency_limits[0])                 # Starting frequency multisine
+    j2=np.ceil(frequency_limits[1])                  # Ending frequency multisine
+    J=int(j2-j1)                                     # Total frequencies multisine
+    j_range=np.ndarray.astype(np.linspace(j1,j2-1,J,endpoint=False),int)                            # Range of j1 to j2
+    j_range_split =np.ndarray.astype(np.concatenate((np.arange(-j2+1, 0), np.arange(j1, j2))),int)
+
+    #Kwargs defenitions
+    phase_response = kwargs.get('phase_response', 'Random')     # Default phase is Random
+    normalize = kwargs.get('normalize', 'None')                 # Default normalization is None
+    time_domain = kwargs.get('time_domain', True)               # Default output without t function
 
 
-    print('Crest factor: {0:.2f} dB'.format(20*np.log10(crest_fac(y))))
-    print('Crest factor: {0:.2f} '.format(crest_fac(y)))
+    # If args is empty, set A_vect to np.ones(N), A is an amplification vector for the multisine
+    if A_vect is None:
+        A = np.ones(N)
+    elif np.size(A_vect) < J:
+        raise ValueError(f'The size of A must be at least equal to {J} (j2-j1)')
+    else:
+        A = A_vect[:J]
+
+    # If args is empty, set A_vect to np.ones(N), A is an amplification vector for the multisine
+    if Tau is None:
+        tau = 1
+    else:
+        tau = Tau
 
 
-    return plt.show()
+    # Select phase response
+    if isinstance(phase_response, str):
+            if phase_response == 'Schroeder':
+                phase = schroeder_phase(j_range,J)
+            elif phase_response == 'Zero':
+                phase = np.zeros(N)
+            elif phase_response == 'Random':
+                phase = np.random.randn(N)
+            elif phase_response == 'Newman':
+                phase = newman_phase(J,j1)
+            elif phase_response == 'Rudin':
+                phase = rudin_phase(J)
+            elif phase_response == 'Linear':
+                phase = linear_phase(tau,j_range,f_s,N)
+            else:
+                raise ValueError('Phase Response must be Random, Schroeder, Zero, Rudin, Newman or Linear.')
+    else:
+        phase = phase_response
 
-#run_multi_advanced()
+
+    # Output u is not a function but a signal array
+    if time_domain:
+        t= np.linspace(0, T,N,endpoint=False)            # Time vector
+        for j in j_range:
+
+            u+= A[j]*np.cos(j*t*2*np.pi*f_0 + phase[j])
+
+    # Output of u is a function dependend on t, u(t)
+    else:
+        u = lambda t: sum(A[j] * np.cos(j * t * 2 * np.pi * f_0 + phase[j]) for j in j_range)
+        return u
+
+    # Normalize the signal spectrum
+    if isinstance(normalize, str):
+
+        if normalize == 'Amplitude':        #Amplitude normalization between -1 & 1
+            u = normalize_amp(u)
+        elif normalize == 'None':           # No normalization, output of pure amplification
+            return u
+
+        #elif normalize == 'Power':
+            #normalize = rhs.normalize_power(u)
+    else:
+                raise ValueError('Normalize must be Amplitude or None')
+
+    return u
+
+
+
