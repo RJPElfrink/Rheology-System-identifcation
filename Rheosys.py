@@ -76,13 +76,13 @@ def rudin_phase(J):
     return phase
 
 def newman_phase(J,j1):
-
     #Sweep-like phase,
 
     k = np.arange(J) + j1
     phase = (np.pi*(k-1)**2)/J
     return phase
 
+# Generation of the multisine signal with input N,f_s, [j1,j2] and phase_response='schroeder'
 def multisine(N, f_s, frequency_limits, A_vect=None, Tau=None, **kwargs):
 
     f_0 = f_s/N                                      # Excitation frequency

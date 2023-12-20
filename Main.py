@@ -6,26 +6,19 @@ from scipy.fft import fft,fftshift,ifft,ifftshift,rfft,rfftfreq,irfft
 from scipy import signal
 import Rheosys as rhs
 import Visualplots
-import random
 
-#andom.seed(10)
+#random.seed(10)
 
 f_s =480                                         # Sample frequency
-N= 480                                       # Number of points
+N= 480                                           # Number of points
 
 Lambda_constant=1.5                              # Value for lambda n/g
 g_constant=2.5                                   # Value for spring constant g
 
 J1=1                                             # Starting frequency multisine
-J2=239                                          # Stopping freqency multisine
+J2=200                                           # Stopping freqency multisine
 
-phi= 0                                           # starting phase
 kind=0                                           # interpolation kind
-
-NBp = 1                                          # Number of block points
-Ntotal=N*NBp                                     # Number of transient points
-
-
 Up=100                                           # Upsampling for plots
 
 # Calculation of time window
@@ -37,8 +30,7 @@ f=np.linspace(0,f_s,N,endpoint=False)            # Frequency range
 
 # Calculate the multisine signal with selected phase and normalization
 # Phase options: Schroeder, Random, Zero, Linear, Newman, Rudin
-u_multi=rhs.multisine(N,f_s,[J1,J2],phase_response='Zero',normalize='Amplitude',time_domain=True)
-
+u_multi=rhs.multisine(N,f_s,[J1,J2],phase_response='Schroeder',normalize='Amplitude',time_domain=True)
 
 # Reconstruction of signal between sample points, use of scipy interpolation, kind is 0,2 and all odd numbers
 u_multi_t_int=interp1d(t,u_multi,kind=kind)
@@ -54,12 +46,14 @@ def ODE_maxwell(t, tau, L,G):
 
 sol_multi = solve_ivp(ODE_maxwell, [0, t[-1]], [0], args=(Lambda_constant,g_constant), t_eval=t)
 
-y_multi=np.squeeze(sol_multi.y)
-Y_multi=fft(y_multi)
-U_multi=fft(u_multi_int)
-G_multi=Y_multi/U_multi
-U_multi=fft(u_multi)
+# Solutions of the ODE
+y_multi=np.squeeze(sol_multi.y)         # y output in time domain
+Y_multi=fft(y_multi)                    # Y output to frequency domain
+U_multi=fft(u_multi_int)                # U input to frequency domain or reconstructed signal
+G_multi=Y_multi/U_multi                 # FRF of the multiphase
 
+
+# Calculations of the multiphase crest factor
 print('Crest factor: {0:.2f} dB'.format(rhs.DB(rhs.crest_fac(u_multi))))
 print('Crest factor: {0:.2f} '.format(rhs.crest_fac(u_multi)))
 
@@ -101,10 +95,16 @@ plt.show()
 
 
 ### SINGLE SINE CALCULATIONS ###
+
+phi= 0                                           # starting phase
+kind=0                                           # interpolation kind
+
+NBp = 1                                          # Number of block points
+Ntotal=N*NBp                                     # Number of transient points
+
 u_single=rhs.sine(2*np.pi*f_0*t+phi)
 u_CT=rhs.sine(2*np.pi*f_0*t_CT+phi)
 
-crest_sine=rhs.crest_fac(u_single)
 ### Calculation of fourier transform in frequency distribution
 Ud=(np.abs(fft(u_single)))                        # DFT input signal
 Udsplit=fftshift(Ud)                             # DFT input signal zero split
