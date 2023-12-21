@@ -2,15 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
-from scipy.fft import fft,fftshift,ifft,ifftshift,rfft,rfftfreq,irfft
+from scipy.fft import fft,fftshift,ifft,ifftshift,rfft,rfftfreq,irfft,fftfreq
 from scipy import signal
 import Rheosys as rhs
 import Visualplots
 
 #random.seed(10)
 
-f_s =480                                         # Sample frequency
-N= 480                                           # Number of points
+f_s = 480                                        # Sample frequency
+N = 480                                      # Number of points
 
 Lambda_constant=1.5                              # Value for lambda n/g
 g_constant=2.5                                   # Value for spring constant g
@@ -21,8 +21,11 @@ J2=200                                           # Stopping freqency multisine
 kind=0                                           # interpolation kind
 Up=100                                           # Upsampling for plots
 
+NBp = 5                                         # Number of block points
+Ntotal=N*NBp                                     # Number of transient points
+
 # Calculation of time window
-f_0 = f_s/N                                      # Excitation frequency
+f_0 =f_s/N                                   # Excitation frequency
 T = N/f_s                                        # Time length
 t= np.linspace(0, T,N,endpoint=False)            # Time vector
 t_CT= np.linspace(0, t[-1], N*Up,endpoint=True)  # Over sampling continuous-time vector
@@ -30,7 +33,7 @@ f=np.linspace(0,f_s,N,endpoint=False)            # Frequency range
 
 # Calculate the multisine signal with selected phase and normalization
 # Phase options: Schroeder, Random, Zero, Linear, Newman, Rudin
-u_multi=rhs.multisine(N,f_s,[J1,J2],phase_response='Schroeder',normalize='Amplitude',time_domain=True)
+u_multi=rhs.multisine(N,f_s, f_0, [J1,J2],phase_response='Schroeder',normalize='Amplitude',time_domain=True,Tau=900)
 
 # Reconstruction of signal between sample points, use of scipy interpolation, kind is 0,2 and all odd numbers
 u_multi_t_int=interp1d(t,u_multi,kind=kind)
@@ -59,6 +62,7 @@ print('Crest factor: {0:.2f} '.format(rhs.crest_fac(u_multi)))
 
 # Figure of the created multisine signal in time domain
 plt.plot(t,u_multi)
+plt.title('Multisine input signal')
 plt.ylabel('Amplitude (dB)')
 plt.xlabel('Time (s)')
 plt.show()
@@ -74,7 +78,7 @@ plt.show()
 Visualplots.input_reconstructer_sampling(t,u_multi,t,u_multi_int)
 
 # plot the maxwel solution over time
-Visualplots.maxwel_plot(t,np.squeeze(sol_multi.y))
+Visualplots.maxwel_plot(t,np.squeeze(sol_multi.y),title='ODE Maxwel of multisine Schroeder phase')
 
 # Transfer function of the maxwell system
 # G=g/((1j*f)+1/L)
@@ -82,75 +86,38 @@ s1 = signal.lti([g_constant], [1, 1/Lambda_constant])
 
 # Transfer function plots of the maxwel system
 w, mag, phase = s1.bode()
-plt.figure()
-plt.semilogx(w, mag)    # Bode magnitude plot
-plt.ylabel('Amplitude (dB)')
-plt.xlabel('Frequency (Hz) test')
-plt.figure()
-plt.semilogx(w, phase)  # Bode phase plot
+
+# Magnitude plot of FRF transferfunction with multisine
+plt.plot(f, rhs.DB(abs(G_multi)),label="Multisine respone")
+plt.plot(w,phase,label="Transfer Function")  # magnitude plot
+plt.xscale('log')
 plt.ylabel('Phase')
 plt.xlabel('Frequency (Hz) test')
 plt.show()
 
+# Phase plot of the FRF transferfunction with multisine
+plt.plot(f, np.angle(G_multi,deg=True),label='Multisine response')
+plt.plot(w,mag,label="Transfer Function")
+plt.xscale('log')
+plt.ylabel('Magnitude [dB]')
+plt.xlabel('Frequency (Hz) test')
+plt.show()
 
 
-### SINGLE SINE CALCULATIONS ###
-
-phi= 0                                           # starting phase
-kind=0                                           # interpolation kind
-
-NBp = 1                                          # Number of block points
-Ntotal=N*NBp                                     # Number of transient points
-
-u_single=rhs.sine(2*np.pi*f_0*t+phi)
-u_CT=rhs.sine(2*np.pi*f_0*t_CT+phi)
-
-### Calculation of fourier transform in frequency distribution
-Ud=(np.abs(fft(u_single)))                        # DFT input signal
-Udsplit=fftshift(Ud)                             # DFT input signal zero split
-fd=np.linspace(0,f_s,N,endpoint=False)                             # DFT frequency
-fdsplit=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,N,endpoint=False)    # DFT frequency zero split
-
-# Reconstruction of signal between sample points, use of scipy interpolation, kind is 0,2 and all odd numbers
-u_single_t=interp1d(t,u_single,kind=kind)
-u_single_int = u_single_t(t)
-
-# Solving of the maxwell differentail equation
-def gamma_dot(t):
-    return u_single_t(t)
-
-# tau_dot=G*gamma_dot(t) -1/lambda *tau
-def ODE_maxwell(t, tau, L,G):
-    #L,G=args
-    return G*gamma_dot(t) - tau/L
-
-sol_Block = solve_ivp(ODE_maxwell, [0, t[-1]], [0], args=(Lambda_constant,g_constant), t_eval=t)
-
-y_block=np.squeeze(sol_Block.y)
-Y_block=fft(y_block)
-U_block=fft(u_single_int)
-G_block=Y_block/U_block
-
-#plt.plot(fd,G_block)
-#plt.show()
-
-#Visualplots.input_signal_sample(t,u_single,t_CT,u_CT)
-#Visualplots.input_stem_split_freqency(f_0,Udsplit,fdsplit)
-#Visualplots.input_line_frequency(fd,Ud)
-#Visualplots.input_reconstructer_sampling(t,u_single,t_CT,u_single_int)
-#Visualplots.maxwel_plot(t,np.squeeze(sol_Block.y))
-
+### TRANSIENT STATE CALCULATIONS ### moeten nog verder worden beschreven
 # Calculations of the extended signal to remove the transient part
 # and repeat the signal to the full time window of N*NBp
 Ttotal=Ntotal/f_s                 # Time length
-T_s = 1/f_s                 # Sampling time
+T_s = 1/f_s                        # Sampling time
 
 t_Trans= np.linspace(0, Ttotal,Ntotal,endpoint=False)        # Transient-time vector
-u_Trans=rhs.sine(2*np.pi*f_0*t_Trans + phi)
+u_Trans=rhs.multisine(Ntotal,f_s, f_0, [J1,J2],phase_response='Schroeder',normalize='Amplitude',time_domain=True,Tau=900)
+u_multi_t=rhs.multisine(Ntotal,f_s, f_0, [J1,J2],phase_response='Schroeder',normalize='Amplitude',time_domain=False,Tau=900)
 
 
 def gamma_dot(t):
-    return rhs.sine(2*np.pi*f_0*t+phi)
+
+    return u_multi_t(t)
 
 # tau_dot=G*gamma_dot(t) -1/lambda *tau
 def ODE_maxwell(t, tau, L,g):
@@ -166,17 +133,38 @@ y_new=np.tile(y_Bp,NBp)
 y_dif=np.squeeze(y_Trans)-y_new
 
 ### Creation of the
-Ud_new=(np.abs(fft(y_new)))/Ntotal                         # DFT input signal
+Ud_new=((fft(y_new)))                         # DFT input signal
 Udsplit_new=fftshift(Ud_new)                             # DFT input signal zero split
 fd_new=np.linspace(0,f_s,Ntotal,endpoint=False)                             # DFT frequency
 fdsplit_new=np.linspace(-np.floor(f_s/2),-np.floor(f_s/2)+f_s,Ntotal,endpoint=True)    # DFT frequency zero split
 
-#Visualplots.simple_plot(t_Trans,u_Trans,title=str(f'Transient signal of N = {N} times {NBp} with N total of {Ntotal}'),x_label=str('Time [s]'),y_label=str('Amplitude'))
-#Visualplots.maxwel_plot(t_Trans,np.squeeze(sol_Trans.y),title='ODE Maxwell transient signal')
-#Visualplots.maxwel_plot(t_Trans,y_new,title='ODE Maxwell repeated signal')
-#Visualplots.maxwel_plot(t_Trans,y_dif,title='ODE Maxwell difference between transient and repeated signal')
+Visualplots.simple_plot(t_Trans,u_Trans,title=str(f'Transient signal of N = {N} times {NBp} with N total of {Ntotal}'),x_label=str('Time [s]'),y_label=str('Amplitude'))
+Visualplots.maxwel_plot(t_Trans,np.squeeze(sol_Trans.y),title='ODE Maxwell transient signal')
+Visualplots.maxwel_plot(t_Trans,y_new,title='ODE Maxwell repeated signal')
+Visualplots.maxwel_plot(t_Trans,y_dif,title='ODE Maxwell difference between transient and repeated signal')
 
-# MULTISINE
+# Solutions of the ODE
+y_multi_new=np.squeeze(sol_Trans.y)             # y output in time domain entire signal
+y_multi_new=y_multi_new[((Ntotal-N)):]          # Copy of last transient period y output
+u_multi_new=u_Trans[((Ntotal-N)):]              # Copy of last transient period u input
+Y_multi_new=fft(y_multi_new)                    # Y output to frequency domain
+U_multi_new=fft(u_multi_new)                    # U input to frequency domain or reconstructed signal
+G_multi_new=Y_multi_new/U_multi_new             # FRF of the multiphase
 
+# Magnitude plot of FRF transferfunction with multisine
+plt.plot(f, rhs.DB((G_multi_new)),label="Multisine respone")
+plt.plot(w,phase,label="Transfer Function")  # magnitude plot
+plt.legend()
+plt.xscale('log')
+plt.ylabel('Phase')
+plt.xlabel('Frequency (Hz) test')
+plt.show()
 
-
+# Phase plot of the FRF transferfunction with multisine
+plt.plot(f, np.angle(G_multi_new,deg=True),label='Multisine response')
+plt.plot(w,mag,label="Transfer Function")
+plt.legend()
+plt.xscale('log')
+plt.ylabel('Magnitude [dB]')
+plt.xlabel('Frequency (Hz) test')
+plt.show()

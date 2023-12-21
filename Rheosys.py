@@ -44,12 +44,11 @@ def schroeder_phase(j_range,J):
     return phase
 
 # Multisine phase generation of phi=-Tau*2*pi*f_s*(j/N)
-def linear_phase(tau,j_range,f_s,N):
+def linear_phase(tau,j_range,f_0,N):
     phase=np.zeros(len(j_range))
 
     for i in range(len(j_range)):
-        phase[i]=-tau*2*np.pi*f_s*(N/j_range[i])
-
+        phase[i]=-j_range[i]/N*tau*2*np.pi*f_0
     return phase
 
 # Multisine phase generation Noise-like, with crest factor under 6 dB when N is a power of 2.
@@ -83,9 +82,9 @@ def newman_phase(J,j1):
     return phase
 
 # Generation of the multisine signal with input N,f_s, [j1,j2] and phase_response='schroeder'
-def multisine(N, f_s, frequency_limits, A_vect=None, Tau=None, **kwargs):
+def multisine(N, f_s,f_0, frequency_limits, A_vect=None, Tau=None, **kwargs):
 
-    f_0 = f_s/N                                      # Excitation frequency
+    #f_0 = f_s/N                                      # Excitation frequency
     T = N/f_s                                        # Time length
     u = np.zeros(N)                                  # Signal vector
 
@@ -120,32 +119,32 @@ def multisine(N, f_s, frequency_limits, A_vect=None, Tau=None, **kwargs):
     if isinstance(phase_response, str):
             if phase_response == 'Schroeder':
                 phase = schroeder_phase(j_range,J)
-            elif phase_response == 'Zero':
-                phase = np.zeros(N)
             elif phase_response == 'Random':
-                phase = np.random.randn(N)
+                phase = np.random.uniform(0,2*np.pi,J)
+            elif phase_response == 'Linear':
+                phase = linear_phase(tau,j_range,f_s,N)
             elif phase_response == 'Newman':
                 phase = newman_phase(J,j1)
             elif phase_response == 'Rudin':
                 phase = rudin_phase(J)
-            elif phase_response == 'Linear':
-                phase = linear_phase(tau,j_range,f_s,N)
+            elif phase_response == 'Zero':
+                phase = np.zeros(N)
+
             else:
                 raise ValueError('Phase Response must be Random, Schroeder, Zero, Rudin, Newman or Linear.')
     else:
         phase = phase_response
-
 
     # Output u is not a function but a signal array
     if time_domain:
         t= np.linspace(0, T,N,endpoint=False)            # Time vector
         for j in j_range:
 
-            u+= A[j]*np.cos(j*t*2*np.pi*f_0 + phase[j])
+            u+= A[j]*np.sin(j*t*2*np.pi*f_0 + phase[j])
 
     # Output of u is a function dependend on t, u(t)
     else:
-        u = lambda t: sum(A[j] * np.cos(j * t * 2 * np.pi * f_0 + phase[j]) for j in j_range)
+        u = lambda t: sum(A[j] * np.sin(j * t * 2 * np.pi * f_0 + phase[j]) for j in j_range)
         return u
 
     # Normalize the signal spectrum
