@@ -25,7 +25,7 @@ kind=0                                           # interpolation kind
 Up=100                                           # Upsampling for plots
 
 # Calculation of time window
-f_0 = 25* f_s/N                                      # Excitation frequency
+f_0 = 25* f_s/N                                  # Excitation frequency
 T = N/f_s                                        # Time length
 t= np.linspace(0, T,N,endpoint=False)            # Time vector
 t_CT= np.linspace(0, t[-1], N*Up,endpoint=True)  # Over sampling continuous-time vector
@@ -105,3 +105,4 @@ Visualplots.simple_plot(t_Trans,u_Trans,title=str(f'Transient signal of N = {N} 
 Visualplots.maxwel_plot(t_Trans,np.squeeze(sol_Trans.y),title='ODE Maxwell transient signal')
 Visualplots.maxwel_plot(t_Trans,y_new,title='ODE Maxwell repeated signal')
 Visualplots.maxwel_plot(t_Trans,y_dif,title='ODE Maxwell difference between transient and repeated signal')
+
