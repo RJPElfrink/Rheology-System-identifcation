@@ -36,10 +36,10 @@ def normalize_amp(y):
 def schroeder_phase(j_range,J):
     phase=[]
     for i in range(len(j_range)):
-        x=-1*(j_range[i])*(j_range[i-1])
+        x=-1*(j_range[i])*(j_range[i]-1)
         phase = np.append(phase, (x*np.pi)/J)
 
-    phase[0]=0
+    #phase[0]=0
 
     return phase
 
@@ -91,8 +91,7 @@ def multisine(N, f_s,f_0, frequency_limits, A_vect=None, Tau=None, **kwargs):
     j1=np.floor(frequency_limits[0])                 # Starting frequency multisine
     j2=np.ceil(frequency_limits[1])                  # Ending frequency multisine
     J=int(j2-j1)                                     # Total frequencies multisine
-    j_range=np.ndarray.astype(np.linspace(j1,j2-1,J,endpoint=False),int)                            # Range of j1 to j2
-    j_range_split =np.ndarray.astype(np.concatenate((np.arange(-j2+1, 0), np.arange(j1, j2))),int)
+    j_range=np.ndarray.astype(np.linspace(j1,j2-1,J,endpoint=True),int)             # Range of j1 to j2
 
     #Kwargs defenitions
     phase_response = kwargs.get('phase_response', 'Random')     # Default phase is Random
@@ -135,16 +134,16 @@ def multisine(N, f_s,f_0, frequency_limits, A_vect=None, Tau=None, **kwargs):
     else:
         phase = phase_response
 
+    # Calculation of the multisine with corresponding phase
     # Output u is not a function but a signal array
     if time_domain:
         t= np.linspace(0, T,N,endpoint=False)            # Time vector
-        for j in j_range:
+        for j in range(len(j_range)):
 
-            u+= A[j]*np.sin(j*t*2*np.pi*f_0 + phase[j])
-
+            u+= A[j]*np.sin(j_range[j]*t*2*np.pi*f_0 + phase[j])
     # Output of u is a function dependend on t, u(t)
     else:
-        u = lambda t: sum(A[j] * np.sin(j * t * 2 * np.pi * f_0 + phase[j]) for j in j_range)
+        u = lambda t: sum(A[j] * np.sin(j_range[j] * t * 2 * np.pi * f_0 + phase[j]) for j in range(len(j_range)))
         return u
 
     # Normalize the signal spectrum
@@ -152,6 +151,11 @@ def multisine(N, f_s,f_0, frequency_limits, A_vect=None, Tau=None, **kwargs):
 
         if normalize == 'Amplitude':        #Amplitude normalization between -1 & 1
             u = normalize_amp(u)
+        elif normalize == 'RMS':
+            current_rms = rms(u)
+            if current_rms > 0:
+                u *= 1 / current_rms
+
         elif normalize == 'None':           # No normalization, output of pure amplification
             return u
 
