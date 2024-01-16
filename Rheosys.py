@@ -2,18 +2,12 @@ import numpy as np
 import scipy as sc
 import matplotlib.pyplot as plt
 from random import random
-from scipy.fft import fft,fftshift,ifft,ifftshift,irfft,rfft,rfftfreq
+from scipy.fft import fftfreq,fftshift,ifft,ifftshift
 
 
 #Excitation signals used as input for the analysis,
 #   input must be defined as one value with the unit of ...
 #   output is defined with the unit of ...
-def sine (period):
-    return np.sin(period)
-
-def cos (period):
-    return np.cos(period)
-
 def DB(arr):
     return 20 * np.log10(np.abs(arr))
 
@@ -34,21 +28,17 @@ def normalize_amp(y):
 # Multisine phase generation of phi=-j(j-1)*pi/F
 # Where F is the total amount of frequencies
 def schroeder_phase(j_range,J):
-    phase=[]
+    phase=np.zeros(J)
     for i in range(len(j_range)):
-        x=-1*(j_range[i])*(j_range[i]-1)
-        phase = np.append(phase, (x*np.pi)/J)
-
-    #phase[0]=0
-
+        phase[i]= -1*(j_range[i])*(j_range[i]-1)*np.pi/J
     return phase
 
 # Multisine phase generation of phi=-Tau*2*pi*f_s*(j/N)
-def linear_phase(tau,j_range,f_0,N):
+def linear_phase(tau,j_range,f_s,N):
     phase=np.zeros(len(j_range))
 
     for i in range(len(j_range)):
-        phase[i]=-j_range[i]/N*tau*2*np.pi*f_0
+        phase[i]=-j_range[i]*tau*2*np.pi*f_s/N
     return phase
 
 # Multisine phase generation Noise-like, with crest factor under 6 dB when N is a power of 2.
@@ -82,14 +72,10 @@ def newman_phase(J,j1):
     return phase
 
 # Generation of the multisine signal with input N,f_s, [j1,j2] and phase_response='schroeder'
-def multisine(N, f_s,f_0, frequency_limits, A_vect=None, Tau=None, **kwargs):
+def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwargs):
 
-    #f_0 = f_s/N                                      # Excitation frequency
-    T = N/f_s                                        # Time length
-    u = np.zeros(N)                                  # Signal vector
-
-    j1=np.floor(frequency_limits[0])                 # Starting frequency multisine
-    j2=np.ceil(frequency_limits[1])                  # Ending frequency multisine
+    j1=int(np.floor(frequency_limits[0]))                 # Starting frequency multisine
+    j2=int(np.ceil(frequency_limits[1]))                  # Ending frequency multisine
     J=int(j2-j1)                                     # Total frequencies multisine
     j_range=np.ndarray.astype(np.linspace(j1,j2-1,J,endpoint=True),int)             # Range of j1 to j2
 
@@ -137,14 +123,23 @@ def multisine(N, f_s,f_0, frequency_limits, A_vect=None, Tau=None, **kwargs):
     # Calculation of the multisine with corresponding phase
     # Output u is not a function but a signal array
     if time_domain:
-        t= np.linspace(0, T,N,endpoint=False)            # Time vector
-        for j in range(len(j_range)):
+        T = (P*N)/f_s                                        # Time length
+        u = np.zeros(N*P)                                    # Signal vector
+        t= np.linspace(0, T,N*P,endpoint=False)            # Time vector
 
+        for j in range(len(j_range)):
             u+= A[j]*np.sin(j_range[j]*t*2*np.pi*f_0 + phase[j])
+
     # Output of u is a function dependend on t, u(t)
     else:
-        u = lambda t: sum(A[j] * np.sin(j_range[j] * t * 2 * np.pi * f_0 + phase[j]) for j in range(len(j_range)))
-        return u
+        def u(t):
+            signal = np.zeros_like(t)
+            for j in range(J):
+                signal += A[j] * np.sin(j_range[j] * t * 2 * np.pi * f_0 + phase[j])
+            return signal
+
+        #u = lambda t: sum(A[j] * np.sin(j_range[j] * t * 2 * np.pi * f_0 + phase[j]) for j in range(len(j_range)))
+        return u,phase
 
     # Normalize the signal spectrum
     if isinstance(normalize, str):
@@ -154,17 +149,21 @@ def multisine(N, f_s,f_0, frequency_limits, A_vect=None, Tau=None, **kwargs):
         elif normalize == 'RMS':
             current_rms = rms(u)
             if current_rms > 0:
-                u *= 1 / current_rms
+                u = u / current_rms
+        elif normalize == 'STDev':
+            current_stdev = np.std(u)
+            if current_stdev > 0:
+                u = u / current_stdev
 
         elif normalize == 'None':           # No normalization, output of pure amplification
-            return u
+            return u,phase
 
         #elif normalize == 'Power':
             #normalize = rhs.normalize_power(u)
     else:
                 raise ValueError('Normalize must be Amplitude or None')
 
-    return u
+    return u,phase
 
 
 
