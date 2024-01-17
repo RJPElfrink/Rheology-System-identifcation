@@ -21,9 +21,22 @@ def crest_fac(frequency):
     return (max(abs(frequency)))/rms(frequency)
 
 # Normalization of the signals amlitude, between -1 and 1
-def normalize_amp(y):
-    y = y / np.max(np.abs(y))
-    return y
+def normalize_amp(signal):
+    signal = signal / np.max(np.abs(signal))
+    return signal
+
+# Normalization of the signals amlitude by RMS devision
+def normalize_rms(signal):
+    current_rms = rms(signal)
+    if current_rms > 0:
+        signal = signal / current_rms
+    return signal
+
+def normalize_stdev(signal):
+    current_stdev = np.std(signal)
+    if current_stdev > 0:
+        signal = signal / current_stdev
+    return signal
 
 # Multisine phase generation of phi=-j(j-1)*pi/F
 # Where F is the total amount of frequencies
@@ -123,8 +136,9 @@ def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwarg
     # Calculation of the multisine with corresponding phase
     # Output u is not a function but a signal array
     if time_domain:
-        T = (P*N)/f_s                                        # Time length
+
         u = np.zeros(N*P)                                    # Signal vector
+        T = (P*N)/f_s                                        # Time length
         t= np.linspace(0, T,N*P,endpoint=False)            # Time vector
 
         for j in range(len(j_range)):
@@ -132,13 +146,13 @@ def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwarg
 
     # Output of u is a function dependend on t, u(t)
     else:
-        def u(t):
-            signal = np.zeros_like(t)
-            for j in range(J):
-                signal += A[j] * np.sin(j_range[j] * t * 2 * np.pi * f_0 + phase[j])
-            return signal
+        #def u_of_t(x):
+           # signal = np.zeros_like(x)
+          #  for j in range(J):
+         #       signal += A[j] * np.sin(j_range[j] * x * 2 * np.pi * f_0 + phase[j])
+        #    return signal
 
-        #u = lambda t: sum(A[j] * np.sin(j_range[j] * t * 2 * np.pi * f_0 + phase[j]) for j in range(len(j_range)))
+        u = lambda t: sum(A[j] * np.sin(j_range[j] * t * 2 * np.pi * f_0 + phase[j]) for j in range(len(j_range)))
         return u,phase
 
     # Normalize the signal spectrum
@@ -147,14 +161,9 @@ def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwarg
         if normalize == 'Amplitude':        #Amplitude normalization between -1 & 1
             u = normalize_amp(u)
         elif normalize == 'RMS':
-            current_rms = rms(u)
-            if current_rms > 0:
-                u = u / current_rms
+            u = normalize_rms(u)
         elif normalize == 'STDev':
-            current_stdev = np.std(u)
-            if current_stdev > 0:
-                u = u / current_stdev
-
+            u = normalize_stdev(u)
         elif normalize == 'None':           # No normalization, output of pure amplification
             return u,phase
 
