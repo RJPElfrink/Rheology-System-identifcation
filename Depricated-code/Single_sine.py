@@ -1,3 +1,17 @@
+import sys
+import os
+
+# Get the directory of the current script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Get the parent directory (one level up)
+parent_dir = os.path.dirname(current_dir)
+
+# Add the parent directory to sys.path
+sys.path.append(parent_dir)
+
+# Now you can import Rheosys
+import Rheosys as rhs
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
@@ -25,15 +39,15 @@ kind=0                                           # interpolation kind
 Up=100                                           # Upsampling for plots
 
 # Calculation of time window
-f_0 = 25* f_s/N                                  # Excitation frequency
+f_0 = 25*f_s/N                                  # Excitation frequency
 T = N/f_s                                        # Time length
 t= np.linspace(0, T,N,endpoint=False)            # Time vector
 t_CT= np.linspace(0, t[-1], N*Up,endpoint=True)  # Over sampling continuous-time vector
 f=np.linspace(0,f_s,N,endpoint=False)            # Frequency range
 
 
-u_single=rhs.sine(2*np.pi*f_0*t+phi)
-u_CT=rhs.sine(2*np.pi*f_0*t_CT+phi)
+u_single=np.sin(2*np.pi*f_0*t+phi)
+u_CT=np.sin(2*np.pi*f_0*t_CT+phi)
 
 ### Calculation of fourier transform in frequency distribution
 Ud=(np.abs(fft(u_single)))                        # DFT input signal
@@ -76,11 +90,11 @@ Ttotal=Ntotal/f_s                 # Time length
 T_s = 1/f_s                 # Sampling time
 
 t_Trans= np.linspace(0, Ttotal,Ntotal,endpoint=False)        # Transient-time vector
-u_Trans=rhs.sine(2*np.pi*f_0*t_Trans + phi)
+u_Trans=np.sin(2*np.pi*f_0*t_Trans + phi)
 
 
 def gamma_dot(t):
-    return rhs.sine(2*np.pi*f_0*t+phi)
+    return np.sin(2*np.pi*f_0*t+phi)
 
 # tau_dot=G*gamma_dot(t) -1/lambda *tau
 def ODE_maxwell(t, tau, L,g):

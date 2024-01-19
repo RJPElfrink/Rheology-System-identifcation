@@ -32,6 +32,7 @@ def normalize_rms(signal):
         signal = signal / current_rms
     return signal
 
+# Normalization of the signals amplitude by standard deviation devision
 def normalize_stdev(signal):
     current_stdev = np.std(signal)
     if current_stdev > 0:
@@ -39,22 +40,22 @@ def normalize_stdev(signal):
     return signal
 
 # Multisine phase generation of phi=-j(j-1)*pi/F
-# Where F is the total amount of frequencies
+# Where F is the total amount of frequencies crest of 1.89
 def schroeder_phase(j_range,J):
     phase=np.zeros(J)
     for i in range(len(j_range)):
         phase[i]= -1*(j_range[i])*(j_range[i]-1)*np.pi/J
     return phase
 
-# Multisine phase generation of phi=-Tau*2*pi*f_s*(j/N)
+# Multisine linear phase generation crest of 28.0
 def linear_phase(tau,j_range,f_s,N):
     phase=np.zeros(len(j_range))
-
+    #phi=-Tau*2*pi*f_s*(j/N)
     for i in range(len(j_range)):
         phase[i]=-j_range[i]*tau*2*np.pi*f_s/N
     return phase
 
-# Multisine phase generation Noise-like, with crest factor under 6 dB when N is a power of 2.
+# Phase generation which looks like an inverse schroeder with crest factor of 1.90
 def rudin_phase(J):
 
     def rudinshapiro(J):
@@ -77,8 +78,8 @@ def rudin_phase(J):
 
     return phase
 
+#Sweep-like phase generation, crest of 2.65
 def newman_phase(J,j1):
-    #Sweep-like phase,
 
     k = np.arange(J) + j1
     phase = (np.pi*(k-1)**2)/J
@@ -142,7 +143,7 @@ def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwarg
         t= np.linspace(0, T,N*P,endpoint=False)            # Time vector
 
         for j in range(len(j_range)):
-            u+= A[j]*np.sin(j_range[j]*t*2*np.pi*f_0 + phase[j])
+            u+= A[j]*np.cos(j_range[j]*t*2*np.pi*f_0 + phase[j])
 
     # Output of u is a function dependend on t, u(t)
     else:
@@ -152,7 +153,7 @@ def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwarg
          #       signal += A[j] * np.sin(j_range[j] * x * 2 * np.pi * f_0 + phase[j])
         #    return signal
 
-        u = lambda t: sum(A[j] * np.sin(j_range[j] * t * 2 * np.pi * f_0 + phase[j]) for j in range(len(j_range)))
+        u = lambda k: sum(A[j] * np.cos(j_range[j] * k * 2 * np.pi * f_0 + phase[j]) for j in range(len(j_range)))
         return u,phase
 
     # Normalize the signal spectrum
@@ -170,7 +171,7 @@ def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwarg
         #elif normalize == 'Power':
             #normalize = rhs.normalize_power(u)
     else:
-                raise ValueError('Normalize must be Amplitude or None')
+                raise ValueError('Normalize must be Amplitude, RMS, STDev or None')
 
     return u,phase
 
