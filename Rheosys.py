@@ -2,12 +2,64 @@ import numpy as np
 import scipy as sc
 import matplotlib.pyplot as plt
 from random import random
-from scipy.fft import fftfreq,fftshift,ifft,ifftshift
+from scipy.fft import fft
 
 
 #Excitation signals used as input for the analysis,
 #   input must be defined as one value with the unit of ...
 #   output is defined with the unit of ...
+
+
+
+def chirp_exponential(time,frequencie_limits,f_s,N,P):
+
+    f_0  = f_s/N
+    T = N/f_s                                        # Time length
+
+    k_1  = frequencie_limits[0]
+    k_2  = frequencie_limits[1]
+
+    L    = T/np.log(k_2/k_1)
+    signal= np.zeros_like(time)
+
+    for ii,t in enumerate(time):
+        signal[ii]=np.sin(2*np.pi*f_0*k_1*L*(np.exp((t/L))-1))
+
+    signal=np.tile(signal,P)
+
+    return signal
+
+
+def fft_normalization(signal, ouput, **kwargs):
+    input=fft(signal)
+    output=fft(ouput)
+
+    normalize = kwargs.get('normalize', 'None')                 # Default normalization is None
+    # Normalize the signal spectrum
+    if isinstance(normalize, str):
+
+        if normalize == 'Amplitude':        #Amplitude normalization between -1 & 1
+            U = normalize_amp(input)
+            Y = normalize_amp(output)
+            print('check amp')
+        elif normalize == 'RMS':
+            U = normalize_rms(input)
+            Y = normalize_rms(output)
+        elif normalize == 'STDev':
+            U = normalize_stdev(input)
+            Y = normalize_stdev(output)
+        elif normalize == 'None':           # No normalization, output of pure amplification
+            print('check none')
+            U=input
+            Y=output
+            G=Y/U
+            return U,Y,G
+    else:
+            raise ValueError('Normalize must be Amplitude, RMS, STDev or None')
+    G=Y/U
+    print('check done')
+    return U, Y, G
+
 def DB(arr):
     return 20 * np.log10(np.abs(arr))
 
@@ -86,7 +138,7 @@ def newman_phase(J,j1):
     return phase
 
 # Generation of the multisine signal with input N,f_s, [j1,j2] and phase_response='schroeder'
-def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwargs):
+def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=1, **kwargs):
 
     j1=int(np.floor(frequency_limits[0]))                 # Starting frequency multisine
     j2=int(np.ceil(frequency_limits[1]))                  # Ending frequency multisine
@@ -108,10 +160,10 @@ def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwarg
         A = A_vect[:J]
 
     # If args is empty, set A_vect to np.ones(N), A is an amplification vector for the multisine
-    if Tau is None:
-        tau = 1
-    else:
-        tau = Tau
+    #if Tau is None:
+    #    tau = 1
+    #else:
+    #    tau = Tau
 
 
     # Select phase response
@@ -121,7 +173,7 @@ def multisine(N, f_s,f_0, frequency_limits, P=1 , A_vect=None, Tau=None, **kwarg
             elif phase_response == 'Random':
                 phase = np.random.uniform(0,2*np.pi,J)
             elif phase_response == 'Linear':
-                phase = linear_phase(tau,j_range,f_s,N)
+                phase = linear_phase(Tau,j_range,f_s,N)
             elif phase_response == 'Newman':
                 phase = newman_phase(J,j1)
             elif phase_response == 'Rudin':
