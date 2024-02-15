@@ -2,7 +2,7 @@ import numpy as np
 
 # Functions for generating different types of signals
 
-def chirp_exponential(time, frequency_limits, f_s, N, P):
+def chirp_exponential(f_s, N, P, frequency_limits):
     """
     Generates an exponential chirp signal.
     Parameters:
@@ -14,9 +14,30 @@ def chirp_exponential(time, frequency_limits, f_s, N, P):
     """
     f_0         = f_s / N
     T           = N / f_s
+    time        = np.linspace(0, T,N,endpoint=False)
     k_1, k_2    = frequency_limits
     L           = T / np.log(k_2 / k_1)
     signal      = np.sin(2 * np.pi * f_0 * k_1 * L * (np.exp(time / L) - 1))
+    signal      = np.tile(signal, P)
+    return signal
+
+
+def chirp_linear(f_s, N, P, frequency_limits):
+    """
+    Generates an exponential chirp signal.
+    Parameters:
+    - time: Time vector.
+    - frequency_limits: Tuple of start and end frequencies.
+    - f_s: Sampling frequency.
+    - N: Number of samples.
+    - P: Number of periods.
+    """
+    f_0         = f_s / N
+    T           = N / f_s
+    time        = np.linspace(0, T,N,endpoint=False)
+    k_1, k_2    = frequency_limits
+    L           = np.pi*(k_2-k_1)*f_0**2
+    signal      = np.sin((L*time+2*np.pi*k_1*f_0)*time)
     signal      = np.tile(signal, P)
     return signal
 
@@ -89,7 +110,7 @@ def newman_phase(J, j1):
 
 # Main function for generating multisine signals
 
-def multisine(N, f_s, f_0, frequency_limits, P=1, A_vect=None,phase_response='Schroeder', Tau=1 , time_domain=True):
+def multisine(f_s, N, P, frequency_limits, A_vect=None,phase_response='Schroeder', Tau=1 , time_domain=True):
     """
     Generates a multisine signal.
     Parameters:
@@ -103,7 +124,7 @@ def multisine(N, f_s, f_0, frequency_limits, P=1, A_vect=None,phase_response='Sc
     - phase_response: Type of phase response ('Random', 'Schroeder', etc.).
     - time_domain: Boolean indicating if output is a function of time u(t) with lambda t.
     """
-
+    f_0           = f_s / N
     j1, j2        = map(int, (np.floor(frequency_limits[0]), np.ceil(frequency_limits[1])))
     J             = j2 - j1
     j_range       = np.linspace(j1, j2 - 1, J, endpoint=True).astype(int)
@@ -153,31 +174,6 @@ def add_noise_with_snr(signal, snr_db):
     return  noise
 
 
-import numpy as np
-
-def calculate_snr(signal, noisy_signal):
-    # Calculate the power of the signal
-    P_signal = np.mean(signal**2)
-
-    # Calculate the noise (difference between noisy signal and original signal)
-    noise = noisy_signal - signal
-
-    # Calculate the power of the noise
-    P_noise = np.mean(noise**2)
-
-    # Calculate SNR in linear scale and then convert to dB
-    SNR_linear = P_signal / P_noise
-    SNR_dB = 20 * np.log10(SNR_linear)
-
-    return SNR_dB
-
-# Example usage
-# Assuming you have a 'signal' array and a 'noisy_signal' array
-# signal = np.array([...])  # Your original signal
-# noisy_signal = np.array([...])  # Your signal with added noise
-# snr = calculate_snr(signal, noisy_signal)
-# print(f"The SNR is: {snr} dB")
-
 def gaussian_noise(signal, mean=0, std=1):
     noise = np.random.normal(mean, std, signal.shape)
     return noise
@@ -205,3 +201,44 @@ def crest_fac(signal):
     Calculates the crest factor of the signal.
     """
     return max(abs(signal)) / rms(signal)
+
+def power_efficiency(signal,bandlimit):
+    """
+    total power in the total frequency band of interest
+    """
+    interest = signal[int(bandlimit[0]):int(bandlimit[1])]
+    P        = sum(abs(signal)**2)/2
+    Pint     = sum(abs(interest)**2)
+    return Pint/P
+
+def power_loss(signal,bandlimit):
+    """
+    power loss in the total frequency band
+    """
+    interest = signal[int(bandlimit[0]):int(bandlimit[1])]
+    Ploss    = min(abs(interest)**2)
+    PMS      = np.mean(abs(interest)**2)
+
+    return Ploss/PMS
+
+def quality_factor(crest,efficiency,loss):
+
+    return np.sqrt(crest**2/efficiency/loss)
+
+def calculate_snr(signal, noisy_signal):
+
+
+    # Calculate the power of the signal
+    P_signal = np.mean(signal**2)
+
+    # Calculate the noise (difference between noisy signal and original signal)
+    noise = noisy_signal - signal
+
+    # Calculate the power of the noise
+    P_noise = np.mean(noise**2)
+
+    # Calculate SNR in linear scale and then convert to dB
+    SNR_linear = P_signal / P_noise
+    SNR_dB = 20 * np.log10(SNR_linear)
+
+    return SNR_dB
