@@ -182,6 +182,24 @@ def add_uniform_noise(signal, low=-1, high=1):
     noise = np.random.uniform(low, high, signal.shape)
     return noise
 
+# Windowing
+def window_function(t, T, r):
+    # Normalizing time array
+    t_normalized = t / T
+
+    # Window function
+    window = np.zeros_like(t)
+    for i, tn in enumerate(t_normalized):
+        if tn <= r / 2:
+            window[i] = np.cos(np.pi / r * (tn - r / 2)) ** 2
+        elif r / 2 < tn < 1 - r / 2:
+            window[i] = 1
+        elif tn >= 1 - r / 2:
+            window[i] = np.cos(np.pi / r * (tn - 1 + r / 2)) ** 2
+
+    return window
+
+
 # Utility functions
 
 def DB(signal):
@@ -223,7 +241,7 @@ def power_loss(signal,bandlimit):
 
 def quality_factor(crest,efficiency,loss):
 
-    return np.sqrt(crest**2/efficiency/loss)
+    return np.sqrt(crest**2/(efficiency*loss))
 
 def calculate_snr(signal, noisy_signal):
 
