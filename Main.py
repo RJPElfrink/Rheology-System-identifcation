@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 from scipy.fft import fft
 from scipy import signal
 import Rheosys as rhs
+from scipy.io import loadmat
 
 
 """Set transfer function parameters"""
@@ -13,32 +14,35 @@ g_constant=2.5                             # Value for spring constant g
 
 f_s = 20                                   # Sample frequency
 N = 2000                                   # Number of points
-P = 2                                      # Number of repeated periods
-P_Tf = 1                                 # Number of removed transient periods
+P = 3                                     # Number of repeated periods
+P_tf = 0.3                                   # Number of removed transient periods
 interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
-normalize_value   =[True,'Amplitude']          # Select normalization methode (None, STDev, Amplitude, RMS)
+normalize_value   =[True,'Amplitude']      # Select normalization methode (None, STDev, Amplitude, RMS)
 
 j_1=1                                      # Starting frequency multisine
-j_2=N/2                                    # Stopping freqency multisine
+j_2=500                                    # Stopping freqency multisine
 phase_selection = 'Schroeder'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
 
-k_1 = 0.3*np.pi*2                                    # Starting frequency chirp
-k_2 = 30*np.pi*2                                  # Stopping frequency chirp
+k_1 = 1                          # Starting frequency chirp
+k_2 = 500                           # Stopping frequency chirp
 
 noise_input_u=[True,20,]                   # Set the value for noise on input to true or false and include SNR in decibels
 noise_output_y=[True,20,]                  # Set the value for noise on output to true or false and include SNR in decibels
 
-window_set=[False,0.15]                    # Set window to true if needed, set value between 0-1, 0 is rectangular, 1 is Hann window
+window_set=[False,0.15]                     # Set window to true if needed, set value between 0-1, 0 is rectangular, 1 is Hann window
 
 plot_signal='Multisine'                        # Select 'Chirp' or 'Multsine' to change plots
 
 """ Calculation of Time window"""
+check = rhs.check_variables(f_s,N,P,P_tf,window_set)
 
 f_0   = f_s/N                                         # Excitation frequency
 T     = N/f_s                                         # Time length
 t     = np.linspace(0, T,N,endpoint=False)            # Time vector
 f     = np.linspace(0,f_s,N,endpoint=False)           # Frequency range
-t_transient= np.linspace(0, T*P,N*P,endpoint=False)   # Transient-time vector
+f_range = np.linspace(j_1,j_2,int(j_2-j_1)+1,endpoint=True)
+N_tf  = int(P_tf*N)                                   # Number of transient points
+t_transient= np.linspace(0, T*(P+P_tf),(N*P+N_tf),endpoint=False)   # Transient-time vector
 
 ### Transfer function of the maxwell system ###
 # G=g/((1j*f)+1/L)
@@ -53,7 +57,7 @@ mag_tf=10**(mag/20)                         # Magnitude of transfer function [-]
 G_tf=mag_tf*np.exp(1j*(phase_tf))           # FRF from defined transfer function
 
 # analytical transient curve
-transient_analytic = np.exp(-t_transient[:(N*(P_Tf+1))]/Lambda_constant)
+transient_analytic = np.exp(-t_transient[:(N)]/Lambda_constant)
 
 
 """
@@ -61,7 +65,7 @@ CALCULATION FOR G_0
 The first steady state periode of the total signal is used to calculate G_0
 """
 
-if P<=P_Tf:
+if P<=P_tf:
     raise ValueError("The number of periods P must be larger then the removed amount of transient free prediods P_tf")
 
 # Calculation of the input signal for the multisine signal over the entire transient time period
@@ -72,11 +76,18 @@ u_chirp=rhs.chirp_exponential(f_s,N,P,[k_1,k_2])
 
 #Select u_chirp or u_multi as tranient signal for figure generation
 if plot_signal=='Multisine':
-    u_transient=u_mutlisine
+    #u_transient=u_mutlisine
+    u_select   = u_mutlisine
     band_range = [j_1,j_2]
 elif plot_signal=='Chirp':
-    u_transient=u_chirp
+    #u_transient=u_chirp
+    u_select = u_chirp
     band_range = [k_1,k_2]
+
+u_transient= np.tile(u_select, P)
+if P_tf!=0:
+    u_transient = np.insert(u_transient,0,u_transient[-N_tf:])
+
 
 # Save the set transient basic signal and apply further normalization an interpolation
 u_0_transient=u_transient
@@ -86,7 +97,7 @@ if window_set[0]==True:
     window = rhs.window_function(t, T, window_set[1])
 
     # Apply the window function individually to each period,
-    window_transient = np.tile(window, P)
+    window_transient = np.tile(window, P+P_tf)
 
     # Applying the extended window function to the extended signal
     u_0_transient = u_0_transient * window_transient
@@ -105,8 +116,10 @@ t_out,y_out, _ = signal.lsim(s1, U=u_0_transient, T=t_transient)
 
 # Calculate G_0 without the disturbtion of any noise
 y_0_transient=np.squeeze(y_out)                # y output in time domain entire transient signal
-y_0=y_0_transient[(N*P_Tf):(N*(P_Tf+1))]       # Copy of first steady period y output
-u_0=u_0_transient[(N*P_Tf):(N*(P_Tf+1))]       # Copy of fire steady period u input
+#y_0=y_0_transient[(N*P_tf):(N*(P_tf+1))]       # Copy of first steady period y output
+#u_0=u_0_transient[(N*P_tf):(N*(P_tf+1))]       # Copy of fire steady period u input
+y_0=y_0_transient[N_tf:(N+N_tf)]                # Copy of first steady period y output
+u_0=u_0_transient[N_tf:(N+N_tf)]                # Copy of fire steady period u input
 Y_0=fft(y_0)                                   # Y output to frequency domain
 U_0=fft(u_0)                                   # U input to frequency domain or reconstructed signal
 G_0=Y_0/U_0                                    # FRF of the multiphase
@@ -144,7 +157,7 @@ if window_set[0]==True:
     window = rhs.window_function(t, T, window_set[1])
 
     # Apply the window function individually to each period,
-    window_transient = np.tile(window, P)
+    window_transient = np.tile(window, P+P_tf)
 
     # Applying the extended window function to the extended signal
     u_n_transient = u_n_transient * window_transient
@@ -176,10 +189,13 @@ U_n=[]
 Y_n=[]
 G_n=[]
 
-for p in range(P - P_Tf):
+u_steady=u_n_transient[N_tf:]
+y_steady=y_n_transient[N_tf:]
+
+for p in range(P):
 
     # Calculate indices for extracting one period
-    start_idx = (N * (P_Tf + p))
+    start_idx = (N *   p)
     end_idx = start_idx + N
 
     # Extract one period from the transient signals
@@ -204,6 +220,13 @@ G_etfe=(np.mean(G_n,axis=0))
 G_ML=np.sum(Y_n,axis=0)/np.sum(U_n,axis=0)
 
 
+#matlab_transfer=rhs.matlab_data(u_n_transient,y_n_transient,u_select,N,1/f_s,f,'Matlab_test_chirp.mat')
+# Load the .mat file
+#data = loadmat('LPM_matlab.mat')
+#G_LPM = data['G_LPM']
+
+#np.save('Multisinetransient.npy',G_ML)
+
 """
 PLOTTING FOR VISUALIZATION OF THE RESULTS
 
@@ -211,12 +234,13 @@ PLOTTING FOR VISUALIZATION OF THE RESULTS
 
 # Phase plot of the FRF transferfunction with multisine
 plt.plot(f,rhs.DB(abs(G_ML)),'-',label='$\hat{G}_{ML}$')
+#plt.plot(f,rhs.DB(abs(np.squeeze(G_LPM))),'-',label='$\hat{G}_{LPM}$')
 #plt.plot(f,rhs.DB(abs(np.squeeze(G_ML))),'-',label='Multisine $\hat{G}$ ML response')
 plt.plot(f,rhs.DB(abs(G_0)),'-',label='G$_0$')
 plt.plot(f,rhs.DB((abs(G_etfe)-abs(G_ML))),'o',label='|$\hat{G}_{etfe}$-$\hat{G}_{ML}$|')
 #plt.plot(f,rhs.DB((abs(mag_tf)-abs(G_0))),'o',label='|G$_{tf}$-G$_0$|')
 plt.plot(f,rhs.DB((abs(G_ML)-abs(G_0))),'o',label='|$\hat{G}_{ML}$-G$_0$|')
-plt.title(f'{plot_signal} input ETFE example P={P} with P_TF={P_Tf}, SNR$_u$ {noise_input_u[1]} dB, SNR$_y$ {noise_output_y[1]} dB, ')
+plt.title(f'{plot_signal} input ETFE example P={P} with P_TF={P_tf}, SNR$_u$ {noise_input_u[1]} dB, SNR$_y$ {noise_output_y[1]} dB, ')
 plt.legend()
 plt.xlim([f_s/N,f_s/2])
 #plt.ylim(-100,25)
@@ -227,7 +251,7 @@ plt.show()
 
 # Figure of the created multisine signal in time domain
 plt.plot(t,u_0)
-plt.title(f'{plot_signal} of first steady state periode, periode number {P_Tf+1}')
+plt.title(f'{plot_signal} of first steady state periode, periode number {P_tf+1}')
 plt.ylabel('Amplitude (dB)')
 plt.xlabel('Time (s)')
 plt.show()
@@ -256,13 +280,14 @@ plt.xlabel('Time (s)')
 plt.show()
 
 #Figure of the created multisine signals frequency domain in Decibel
-plt.plot(t_transient[:(N*(P_Tf+1))],np.tile(y_0,P_Tf+1)-y_0_transient[:(N*(P_Tf+1))],label='y-y$_p$')
-plt.plot(t_transient[:(N*(P_Tf+1))],transient_analytic,label='analytical transient')
+plt.plot(t_transient[:N_tf],y_0[:(N_tf)]-y_0_transient[(N+N_tf):(N+N_tf+N_tf)],label='y-y$_p$')
+plt.plot(t_transient[:N_tf],transient_analytic[:N_tf],label='analytic')
+#plt.plot(t_transient[:N_tf],y_0[:(N_tf)]-y_0_transient[:N_tf],label='y-y$_p$')
+plt.yscale('log')
 plt.ylabel('y-y$_p$')
-plt.ylim(0,1.5*np.max(np.tile(y_0,P_Tf+1)-y_0_transient[:(N*(P_Tf+1))]))
 plt.legend()
 plt.xlabel('Time[s]')
-plt.title(f'Transient detection of ouput y over steady output y_p, where y_p is Period number {P_Tf+1} ')
+plt.title(f'Transient detection of ouput y over steady output y_p, where y_p is Period number {P_tf+1} ')
 plt.show()
 
 # Phase plot of the FRF transferfunction with multisine

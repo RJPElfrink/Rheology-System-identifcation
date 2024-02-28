@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.io import savemat
 
 # Functions for generating different types of signals
 
@@ -18,7 +19,8 @@ def chirp_exponential(f_s, N, P, frequency_limits):
     k_1, k_2    = frequency_limits
     L           = T / np.log(k_2 / k_1)
     signal      = np.sin(2 * np.pi * f_0 * k_1 * L * (np.exp(time / L) - 1))
-    signal      = np.tile(signal, P)
+    #signal      = np.tile(signal, P)
+
     return signal
 
 
@@ -143,10 +145,13 @@ def multisine(f_s, N, P, frequency_limits, A_vect=None,phase_response='Schroeder
     }.get(phase_response, ValueError('Invalid phase response'))
 
     # Calculate multisine signal
-    u = np.zeros(N * P) if time_domain else lambda k: sum(A[j] * np.cos(j_range[j] * k * 2 * np.pi * f_0 + phase[j]) for j in range(J))
+    #u = np.zeros(N * P) if time_domain else lambda k: sum(A[j] * np.cos(j_range[j] * k * 2 * np.pi * f_0 + phase[j]) for j in range(J))
+    u = np.zeros(N) if time_domain else lambda k: sum(A[j] * np.cos(j_range[j] * k * 2 * np.pi * f_0 + phase[j]) for j in range(J))
     if time_domain:
-        T = (P * N) / f_s
-        t = np.linspace(0, T, N * P, endpoint=False)
+        T = (N) / f_s
+        #T = (P * N) / f_s
+        t = np.linspace(0, T, N , endpoint=False)
+        #t = np.linspace(0, T, N * P, endpoint=False)
         for j in range(J):
             u += A[j] * np.cos(j_range[j] * t * 2 * np.pi * f_0 + phase[j])
 
@@ -260,3 +265,54 @@ def calculate_snr(signal, noisy_signal):
     SNR_dB = 20 * np.log10(SNR_linear)
 
     return SNR_dB
+
+# Value check befor running the main operation
+
+def check_variables(samplefrequency,samplenumbers,periods,transientperiod,window):
+    f_s=samplefrequency
+    N  = samplenumbers
+    P  = periods
+    P_tf = transientperiod
+    window = window
+
+
+    f_0   = f_s/N                                         # Excitation frequency
+    T     = N/f_s                                         # Time length
+    t     = np.linspace(0, T,N,endpoint=False)            # Time vector
+    f     = np.linspace(0,f_s,N,endpoint=False)           # Frequency range
+    N_tf  = P_tf*N                                   # Number of transient points
+
+
+    if f_s>=0.5*N:
+        raise ValueError(f'To prevent leakage the number of samples N must always be more then 2 times the sample frequency f_s.')
+    if N %1 !=0 :
+        raise ValueError(f'The number of samples N, must always be an integer value. {N} can not be a part of a sample')
+    if N_tf % 1 != 0:
+        raise ValueError(f"The product of P_tf ({P_tf}) and N ({N}) must be an integer, decimal number of periods can be processed. Received {N_tf} instead.")
+    if window[0]==True  and P_tf %1 !=0 :
+        raise ValueError(f'When applying the window on the input signal, one can not select a percentage valued transient period P_tf. Select P_tf {P_tf} either as {int(np.floor(P_tf))} or {int(np.ceil(P_tf))}')
+
+def matlab_data(input,output,reference,samplenumbers,sampletime,frequencyrange,filename):
+        # Organizing the data into the specified structure
+    # Path for the MATLAB .m file with .m extension
+    m_filename = filename if filename.endswith('.mat') else f"{filename}.mat"
+
+    input_array = np.asarray(input)
+    output_array = np.asarray(output)
+    reference_array = np.asarray(reference)
+    frequencyrange_array = np.asarray(frequencyrange)
+
+    # Organizing the data into the specified structure
+    data = {
+        'u': input_array,
+        'y': output_array,
+        'r': reference_array,
+        'N': np.array([samplenumbers]),
+        'Ts': np.array([sampletime]),
+        'ExcitedHarm': frequencyrange_array
+    }
+
+    # Save the dictionary to a .mat file structured as a 1x1 struct
+    #savemat(m_filename, {'data': data})
+    # Save the dictionary to a .mat file
+    return savemat(m_filename,  data)
