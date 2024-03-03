@@ -14,7 +14,7 @@ g_constant=2.5                             # Value for spring constant g
 
 f_s = 20                                   # Sample frequency
 N = 2000                                   # Number of points
-P = 3                                     # Number of repeated periods
+P = 10                                     # Number of repeated periods
 P_tf = 0.3                                   # Number of removed transient periods
 interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
 normalize_value   =[True,'Amplitude']      # Select normalization methode (None, STDev, Amplitude, RMS)
@@ -23,15 +23,15 @@ j_1=1                                      # Starting frequency multisine
 j_2=500                                    # Stopping freqency multisine
 phase_selection = 'Schroeder'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
 
-k_1 = 1                          # Starting frequency chirp
-k_2 = 500                           # Stopping frequency chirp
+k_1 = 1                                    # Starting frequency chirp
+k_2 = 500                                  # Stopping frequency chirp
 
 noise_input_u=[True,20,]                   # Set the value for noise on input to true or false and include SNR in decibels
 noise_output_y=[True,20,]                  # Set the value for noise on output to true or false and include SNR in decibels
 
-window_set=[False,0.15]                     # Set window to true if needed, set value between 0-1, 0 is rectangular, 1 is Hann window
+window_set=[False,0.15]                    # Set window to true if needed, set value between 0-1, 0 is rectangular, 1 is Hann window
 
-plot_signal='Multisine'                        # Select 'Chirp' or 'Multsine' to change plots
+plot_signal='Multisine'                    # Select 'Chirp' or 'Multsine' to change plots
 
 """ Calculation of Time window"""
 check = rhs.check_variables(f_s,N,P,P_tf,window_set)
@@ -220,12 +220,9 @@ G_etfe=(np.mean(G_n,axis=0))
 G_ML=np.sum(Y_n,axis=0)/np.sum(U_n,axis=0)
 
 
-#matlab_transfer=rhs.matlab_data(u_n_transient,y_n_transient,u_select,N,1/f_s,f,'Matlab_test_chirp.mat')
-# Load the .mat file
-#data = loadmat('LPM_matlab.mat')
-#G_LPM = data['G_LPM']
+#matlab_transfer=rhs.matlab_data(u_n_transient,y_n_transient,u_select,N,1/f_s,f_range,'Matlab_Chirptransient.mat')
 
-#np.save('Multisinetransient.npy',G_ML)
+#np.save('G_0_multisine.npy',G_0)
 
 """
 PLOTTING FOR VISUALIZATION OF THE RESULTS
