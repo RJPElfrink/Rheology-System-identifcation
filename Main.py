@@ -14,20 +14,22 @@ g_constant=2.5                             # Value for spring constant g
 
 f_s = 20                                   # Sample frequency
 N = 2000                                   # Number of points
-P = 10                                     # Number of repeated periods
-P_tf = 0.3                                   # Number of removed transient periods
+P = 1                                     # Number of repeated periods
+P_tf = 0                                   # Number of removed transient periods
 interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
-normalize_value   =[True,'Amplitude']      # Select normalization methode (None, STDev, Amplitude, RMS)
+normalize_value   =[True,'STDev']      # Select normalization methode (None, STDev, Amplitude, RMS)
+
+M =1
 
 j_1=1                                      # Starting frequency multisine
-j_2=500                                    # Stopping freqency multisine
+j_2=N/2                                    # Stopping freqency multisine
 phase_selection = 'Schroeder'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
 
 k_1 = 1                                    # Starting frequency chirp
 k_2 = 500                                  # Stopping frequency chirp
 
-noise_input_u=[True,20,]                   # Set the value for noise on input to true or false and include SNR in decibels
-noise_output_y=[True,20,]                  # Set the value for noise on output to true or false and include SNR in decibels
+noise_input_u=[False,200,]                   # Set the value for noise on input to true or false and include SNR in decibels
+noise_output_y=[False,200,]                  # Set the value for noise on output to true or false and include SNR in decibels
 
 window_set=[False,0.15]                    # Set window to true if needed, set value between 0-1, 0 is rectangular, 1 is Hann window
 
@@ -135,90 +137,119 @@ print('Power efficiency: {0:.2f} '.format(fact_effic))
 print('Power loss: {0:.2f} '.format(fact_loss))
 print('Signal quality: {0:.2f} '.format(fact_quali))
 
-"""
-CALCULATIONS OF NOISE
-Starting with the addition of measurement noise on either inpot or output
-Noise on input is not transfer trough the transfer function in calculation of the output
-"""
-# Sampled transient signal as a function of t
-if interpolation_kind[0]==True:
-    u_n_transient_t=interp1d(t_transient,u_transient,kind=interpolation_kind[1])
-    u_n_transient=u_n_transient_t(t_transient)
 
-# Apply measurement noise to the input
-if noise_input_u[0]==True:
-    n_u=rhs.add_noise_with_snr(u_n_transient,noise_input_u[1])
-    u_n_transient=u_n_transient + n_u
-else:
-    u_n_transient=u_n_transient
+# Initialize lists to collect data
+u_M = []
+y_M = []
+U_M = []
+Y_M = []
+G_M = []
 
-if window_set[0]==True:
-    # Calculate the window function again
-    window = rhs.window_function(t, T, window_set[1])
+for m in range(M):
+    """
+    CALCULATIONS OF NOISE
+    Starting with the addition of measurement noise on either inpot or output
+    Noise on input is not transfer trough the transfer function in calculation of the output
+    """
+    # Sampled transient signal as a function of t
+    if interpolation_kind[0]==True:
+        u_n_transient_t=interp1d(t_transient,u_transient,kind=interpolation_kind[1])
+        u_n_transient=u_n_transient_t(t_transient)
 
-    # Apply the window function individually to each period,
-    window_transient = np.tile(window, P+P_tf)
+    # Apply measurement noise to the input
+    if noise_input_u[0]==True:
+        n_u=rhs.add_noise_with_snr(u_n_transient,noise_input_u[1])
+        u_n_transient=u_n_transient + n_u
+    else:
+        u_n_transient=u_n_transient
 
-    # Applying the extended window function to the extended signal
-    u_n_transient = u_n_transient * window_transient
+    if window_set[0]==True:
+        # Calculate the window function again
+        window = rhs.window_function(t, T, window_set[1])
 
+        # Apply the window function individually to each period,
+        window_transient = np.tile(window, P+P_tf)
 
-# Normalize the input signal to None, STDev, Amplitude or RMS
-if normalize_value[0]==True:
-    u_n_transient=rhs.normalization(u_n_transient,normalize=str(normalize_value[1]))
-
-# Compute the response output y by
-t_n_out,y_n_out, _ = signal.lsim(s1, U=u_0_transient, T=t_transient)
-
-# Application of measurement noise on the ouput
-if noise_output_y[0]==True:
-    n_y = rhs.add_noise_with_snr(y_n_out,noise_output_y[1])
-    y_n_transient= y_out + n_y
-else:
-    y_n_transient=np.squeeze(y_out)          # y output in time domain entire transient signal
+        # Applying the extended window function to the extended signal
+        u_n_transient = u_n_transient * window_transient
 
 
-"""
-CALCULATION OF G^ IN MULTIPLE PERIODS
-Depending on the amount of selected transfer free periods
-The overall Frequency responce is calculated
+    # Normalize the input signal to None, STDev, Amplitude or RMS
+    if normalize_value[0]==True:
+        u_n_transient=rhs.normalization(u_n_transient,normalize=str(normalize_value[1]))
 
-"""
+    # Compute the response output y by, input noise is only on measurement not on generator, so the model is inserted with u_0
+    t_n_out,y_n_out, _ = signal.lsim(s1, U=u_0_transient, T=t_transient)
 
-U_n=[]
-Y_n=[]
-G_n=[]
+    # Application of measurement noise on the ouput
+    if noise_output_y[0]==True:
+        n_y = rhs.add_noise_with_snr(y_n_out,noise_output_y[1])
+        y_n_transient= y_out + n_y
+    else:
+        y_n_transient=np.squeeze(y_out)          # y output in time domain entire transient signal
 
-u_steady=u_n_transient[N_tf:]
-y_steady=y_n_transient[N_tf:]
 
-for p in range(P):
+    """
+    CALCULATION OF G^ IN MULTIPLE PERIODS
+    Depending on the amount of selected transfer free periods
+    The overall Frequency responce is calculated
 
-    # Calculate indices for extracting one period
-    start_idx = (N *   p)
-    end_idx = start_idx + N
+    """
 
-    # Extract one period from the transient signals
-    y_n_period = y_n_transient[start_idx:end_idx]
-    u_n_period = u_n_transient[start_idx:end_idx]
+    U_n=[]
+    Y_n=[]
+    G_n=[]
 
-    # Calculate FFT of the extracted period
-    Y_n_period = fft(y_n_period)
-    U_n_period = fft(u_n_period)
+    u_steady=u_n_transient[N_tf:]
+    y_steady=y_n_transient[N_tf:]
 
-    # Append FFT results to the lists
-    Y_n.append(Y_n_period)
-    U_n.append(U_n_period)
+    for p in range(P):
 
-    # Calculate FRF for each period and append to G_n
-    G_n.append(Y_n_period/U_n_period)
+        # Calculate indices for extracting one period
+        start_idx = (N *   p)
+        end_idx = start_idx + N
+
+        # Extract one period from the transient signals
+        y_n_period = y_n_transient[start_idx:end_idx]
+        u_n_period = u_n_transient[start_idx:end_idx]
+
+        # Calculate FFT of the extracted period
+        Y_n_period = fft(y_n_period)
+        U_n_period = fft(u_n_period)
+
+        # Append FFT results to the lists
+        Y_n.append(Y_n_period)
+        U_n.append(U_n_period)
+
+        # Calculate FRF for each period and append to G_n
+    U_n=np.array(U_n)
+    Y_n=np.array(Y_n)
+    G_n.append(np.sum(Y_n,axis=0)/np.sum(U_n,axis=0))
+
+    u_M.append(u_n_transient)
+    y_M.append(y_n_transient)
+    G_M.append(G_n)
+    U_M.append(U_n)
+    Y_M.append(Y_n)
+
+u_M=np.array(u_M)
+y_M=np.array(y_M)
+U_M=np.array(U_M)
+Y_M=np.array(Y_M)
+G_M=np.array(G_M)
+
+
+data_u = u_M.reshape(1, 1, M, -1)  # Reshape assuming u_n_transient is a 1D array for each experiment
+data_y = y_M.reshape(1, 1, M, -1)  # Reshape assuming y_n_transient is a 1D array for each experiment
+
 
 # FRF calculation by emperical transfer function estimate
-G_etfe=(np.mean(G_n,axis=0))
+G_etfe=(np.mean(G_M,axis=0))
 
 # FRF calculation by Maximum Likelihood
-G_ML=np.sum(Y_n,axis=0)/np.sum(U_n,axis=0)
-
+G_ML=np.mean(np.sum(Y_M,axis=0)/np.sum(U_M,axis=0),axis=0)
+G_MLn=np.sum(Y_n,axis=0)/np.sum(U_n,axis=0)
+var_G_ML=np.var(np.sum(Y_M,axis=0)/np.sum(U_M,axis=0),axis=0)
 
 #matlab_transfer=rhs.matlab_data(u_n_transient,y_n_transient,u_select,N,1/f_s,f_range,'Matlab_Chirptransient.mat')
 
@@ -234,9 +265,11 @@ plt.plot(f,rhs.DB(abs(G_ML)),'-',label='$\hat{G}_{ML}$')
 #plt.plot(f,rhs.DB(abs(np.squeeze(G_LPM))),'-',label='$\hat{G}_{LPM}$')
 #plt.plot(f,rhs.DB(abs(np.squeeze(G_ML))),'-',label='Multisine $\hat{G}$ ML response')
 plt.plot(f,rhs.DB(abs(G_0)),'-',label='G$_0$')
-plt.plot(f,rhs.DB((abs(G_etfe)-abs(G_ML))),'o',label='|$\hat{G}_{etfe}$-$\hat{G}_{ML}$|')
+#plt.plot(f,rhs.DB((abs(G_etfe)-abs(G_ML))),'o',label='|$\hat{G}_{etfe}$-$\hat{G}_{ML}$|')
 #plt.plot(f,rhs.DB((abs(mag_tf)-abs(G_0))),'o',label='|G$_{tf}$-G$_0$|')
 plt.plot(f,rhs.DB((abs(G_ML)-abs(G_0))),'o',label='|$\hat{G}_{ML}$-G$_0$|')
+plt.plot(f,rhs.DB((abs(G_MLn)-abs(G_0))),'o',label='|$\hat{G}_{MLn}$-G$_0$|')
+plt.plot(f,rhs.DB(var_G_ML),'o',label='Variance')
 plt.title(f'{plot_signal} input ETFE example P={P} with P_TF={P_tf}, SNR$_u$ {noise_input_u[1]} dB, SNR$_y$ {noise_output_y[1]} dB, ')
 plt.legend()
 plt.xlim([f_s/N,f_s/2])
@@ -335,3 +368,14 @@ plt.tight_layout()
 plt.show()
 
 
+# Load the MATLAB file
+data = loadmat('G_output.mat')
+
+# Access the 'output_data' structure
+output_data = data['output_data']
+
+G_data = np.squeeze(output_data['G'][0,0])
+
+plt.plot(f_range,rhs.DB(G_data))
+plt.xscale('log')
+plt.show()

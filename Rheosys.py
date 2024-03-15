@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.io import savemat
+import matlab.engine
 
 # Functions for generating different types of signals
 
@@ -292,7 +293,7 @@ def check_variables(samplefrequency,samplenumbers,periods,transientperiod,window
     if window[0]==True  and P_tf %1 !=0 :
         raise ValueError(f'When applying the window on the input signal, one can not select a percentage valued transient period P_tf. Select P_tf {P_tf} either as {int(np.floor(P_tf))} or {int(np.ceil(P_tf))}')
 
-def matlab_data(input,output,reference,samplenumbers,sampletime,frequencyrange,filename):
+def matlab_input_file(filename,input,output,reference,samplenumbers,sampletime,frequencyrange):
         # Organizing the data into the specified structure
     # Path for the MATLAB .m file with .m extension
     m_filename = filename if filename.endswith('.mat') else f"{filename}.mat"
@@ -316,3 +317,77 @@ def matlab_data(input,output,reference,samplenumbers,sampletime,frequencyrange,f
     #savemat(m_filename, {'data': data})
     # Save the dictionary to a .mat file
     return savemat(m_filename,  data)
+
+def matlab_input_data(input,output,reference,samplenumbers,sampletime,frequencyrange):
+
+    input_array = np.asarray(input)
+    output_array = np.asarray(output)
+    reference_array = np.asarray(reference)
+    frequencyrange_array = np.asarray(frequencyrange)
+
+    # Organizing the data into the specified structure
+    data = {
+        'u': input_array,
+        'y': output_array,
+        'r': reference_array,
+        'N': np.array([samplenumbers]),
+        'Ts': np.array([sampletime]),
+        'ExcitedHarm': frequencyrange_array
+    }
+
+    # Save the dictionary to a .mat file structured as a 1x1 struct
+    #savemat(m_filename, {'data': data})
+    # Save the dictionary to a .mat file
+    return data
+
+
+def matlab_method(filename,order=2,dof=2,transient_on=1):
+        # Organizing the data into the specified structure
+    # Path for the MATLAB .m file with .m extension
+    m_filename = filename if filename.endswith('.mat') else f"{filename}.mat"
+
+    # Organizing the data into the specified structure
+    method = {
+        'order': np.array([order]),             #order of the local polynomial approximation (default 2)
+        'dof': np.array([dof]),                 #degrees of freedom of the (co-)variance estimates = equivalent number of independent experiments - 1 (default ny)
+        'transient': np.array([transient_on]),  #determines the estimation of the transient term (optional; default 1) 1: transient term is estimated 0: no transient term is estimated
+    }
+
+    # Save the dictionary to a .mat file structured as a 1x1 struct
+    #savemat(m_filename, {'data': data})
+    # Save the dictionary to a .mat file
+    return savemat(m_filename,  method)
+
+def matpy_LPM(u,y,reference_signal,N,fs,excitedharmonics,order=2,dof=1,transient_on=1):
+
+    eng = matlab.engine.start_matlab()
+
+    eng.cd(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation\Matlab\auxiliary\EngineTest', nargout=0)
+    # test connection with the right folder, triarea is a different script in the same folder
+    #ret = eng.triarea(1.0,5.0)
+
+
+
+    # Convert Python data to MATLAB compatible types
+    u_matlab = matlab.double(u)  # Convert list to MATLAB double
+    y_matlab = matlab.double(y)  # Convert list to MATLAB double
+    r_matlab = matlab.double(reference_signal)  # Convert list to MATLAB double
+    ExcitedHarm_matlab = matlab.double(excitedharmonics)  # Convert list to MATLAB double
+    order_matlab=matlab.double(order)
+    dof_matlab=matlab.double(dof)
+    transient_matlab=matlab.double(transient_on)
+
+
+    # Call the Matpy function with data from Python
+    output_data_matlab = eng.Matpy(u_matlab, y_matlab, r_matlab, N, fs, ExcitedHarm_matlab,order_matlab,dof_matlab,transient_matlab)
+
+
+    # Accessing the encapsulated data in Python
+    #for i in range(0, M ):
+    G_i = output_data_matlab['G'][0]
+
+    # Stop MATLAB engine
+    eng.quit()
+    G_LPM=np.squeeze(np.array(output_data_matlab['G']))
+    return G_LPM
+

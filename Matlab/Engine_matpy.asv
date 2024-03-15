@@ -1,0 +1,42 @@
+clear all; close all;
+
+%method = load("Matlab_Method.mat");
+
+% Load the data structure from the .mat file
+data = load('Matlab_input.mat');
+%method = load('Matlab_method.mat');
+
+% Assuming 'data' has fields 'u' and 'y', each [100 x 2000]
+numMeasurements = size(data.u, 1);  % Assuming the first dimension is the number of measurements
+
+% Initialize 'output_data' as an empty structure with defined fields
+%output_data = struct('CZn', [], 'varCvecGn', [], 'varCvecGNL', [], 'freq', [], 'G', []);
+output_data = struct('G', []);
+
+for i = 1:numMeasurements
+    % Extract the i-th measurement for u and y
+    currentData.u = data.u(i, :);
+    currentData.y = data.y(i, :);
+    currentData.r= data.r;
+    currentData.N = data.N;
+    currentData.Ts = data.Ts;
+    currentData.ExcitedHarm = data.ExcitedHarm;
+
+
+    % Perform analysis with FastLocalPolyAnal on the current set of measurements
+    [CZ, Z, freq, G, CvecG, dof, CL] = FastLocalPolyAnal(currentData, method);
+
+
+    %output_data(i).CZn = squeeze(CZ.n);                % noise covariance matrix of the sample mean Z.n over the periods 
+    %output_data.varCvecGn = squeeze(CvecG.n);          % noise variance covariance matrix of vec(G)
+    %output_data(i).varCvecGNL = squeeze(CvecG.NL);     % total variance (noise + nonlinear distortion) covariance matrix of vec(G) 
+    %output_data(i).freq = squeeze(freq);               % frequency of the excited harmonics; size 1 x F
+    output_data(i).G = squeeze(G).';                   % estimated frequency response matrix; size ny x nu x F
+    
+end
+
+
+% Save the output_data structure to a new .mat file
+save('G_test_LPM.mat', 'output_data');
+
+
