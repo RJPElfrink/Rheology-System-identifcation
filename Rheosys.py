@@ -296,7 +296,7 @@ def check_variables(samplefrequency,samplenumbers,periods,transientperiod,window
 def matlab_input_file(filename,input,output,reference,samplenumbers,sampletime,frequencyrange):
         # Organizing the data into the specified structure
     # Path for the MATLAB .m file with .m extension
-    m_filename = filename if filename.endswith('.mat') else f"{filename}.mat"
+    m_filename = filename #if filename.endswith('.mat') else f"{filename}.mat"
 
     input_array = np.asarray(input)
     output_array = np.asarray(output)
@@ -362,7 +362,7 @@ def matpy_LPM(u,y,reference_signal,N,fs,excitedharmonics,order=2,dof=1,transient
 
     eng = matlab.engine.start_matlab()
 
-    eng.cd(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation\Matlab\auxiliary\EngineTest', nargout=0)
+    eng.cd(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation\EngineMatpy', nargout=0)
     # test connection with the right folder, triarea is a different script in the same folder
     #ret = eng.triarea(1.0,5.0)
 
@@ -384,10 +384,11 @@ def matpy_LPM(u,y,reference_signal,N,fs,excitedharmonics,order=2,dof=1,transient
 
     # Accessing the encapsulated data in Python
     #for i in range(0, M ):
-    G_i = output_data_matlab['G'][0]
+    #G_i = output_data_matlab['G'][0]
 
     # Stop MATLAB engine
     eng.quit()
     G_LPM=np.squeeze(np.array(output_data_matlab['G']))
+
     return G_LPM
 

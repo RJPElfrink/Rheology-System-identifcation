@@ -1,0 +1,75 @@
+%% CALCULATE G FOR JUST ONE MEASUREMENT, INPUT IS .MAT FILE
+clear all; 
+method.order        =   2; %order of the local polynomial approximation (default 2) 
+method.dof          =   1; %degrees of freedom of the (co-)variance estimates = equivalent number of 
+%                                               independent experiments - 1 (default ny) 
+method.transient    = 	0;%determines the estimation of the transient term (optional; default 1)  
+%                                                   1: transient term is estimated 
+%                                                   0: no transient term is estimated 
+
+multi=load('Matlab_input_multisine.mat');
+
+data_multi = struct('u', [], 'y', [], 'r', [], 'N', [], 'Ts', [], 'ExcitedHarm', []);
+data_multi.u = multi.u;                             % row index is the input number; the column index the time instant (in samples) 
+data_multi.y = multi.y;                             % row index is the output number; the column index the time instant (in samples) 
+data_multi.r = multi.r;                             % one period of the reference signal is sufficient 
+data_multi.N = multi.N;                             % number of samples in one period 
+data_multi.Ts = multi.Ts;                           % sampling period 
+data_multi.ExcitedHarm = multi.ExcitedHarm;         % excited harmonics multisine excitation
+
+[CZ_m, Z_m, freq_m, G_m, CvecG_m, dof_m, CL_m] = FastLocalPolyAnal(data_multi, method);
+
+% FRF and its variance
+G_multi = squeeze(G_m).';
+
+% Procduce the LPM for the chirp signal with equal method 
+chirp=load('Matlab_input_chirp.mat');
+
+data_chirp = struct('u', [], 'y', [], 'r', [], 'N', [], 'Ts', [], 'ExcitedHarm', []);
+data_chirp.u = chirp.u;                             % row index is the input number; the column index the time instant (in samples) 
+data_chirp.y = chirp.y;                             % row index is the output number; the column index the time instant (in samples) 
+data_chirp.r = chirp.r;                             % one period of the reference signal is sufficient 
+data_chirp.N = chirp.N;                             % number of samples in one period 
+data_chirp.Ts = chirp.Ts;                           % sampling period 
+data_chirp.ExcitedHarm = chirp.ExcitedHarm;         % excited harmonics multisine excitation
+
+[CZ_c, Z_c, freq_c, G_c, CvecG_c, dof_c, CL_c] = FastLocalPolyAnal(data_chirp, method);
+
+% FRF and its variance
+G_chirp = squeeze(G_c).';
+
+
+%% different options for output
+%varGn = squeeze(CvecG.n).';              % noise variance
+%varGNL = squeeze(CvecG.NL).';            % total variance (noise + NL distortions)
+
+% data output
+%output_data = struct('CZn', [], 'varCvecGn', [],'varCvecGNL', [], 'freq', [], 'G', []);
+%output_data.CZn = squeeze(CZ.n);                   % noise covariance matrix of the sample mean Z.n over the periods 
+%output_data.varCvecGn = squeeze(CvecG.n);           % noise variance covariance matrix of vec(G)
+%output_data.varCvecGNL = squeeze(CvecG.NL);         % total variance (noise + nonlinear distortion) covariance matrix of vec(G) 
+%output_data.freq = squeeze(freq);                  % frequency of the excited harmonics; size 1 x F
+%output_data.G = squeeze(G);                        % estimated frequency response matrix; size ny x nu x F 
+
+
+%% Transfer function FRF
+g = 2.5; lambda = 1.5;
+sys = tf(g,[1, 1/lambda]);
+
+% Bode Plot for Designed System
+[mag,phase,wout] = bode(sys,freq_m*2*pi);
+mag_tf = squeeze(mag);
+phase_tf = deg2rad(squeeze(phase));
+G_tf=mag_tf.*exp(1i*phase_tf);
+
+% Plot of G0 reffered to G_LPM
+figure()
+semilogx(freq_m, db(G_tf),'b',freq_m, db(G_multi), 'k', freq_c, db(G_chirp),'r')
+xlabel('Frequency (Hz)')
+ylabel('Amplitude (dB)')
+title('FRF of LPM with multisine and chirp systems, method: order=2,dof=1,transient=0')
+legend( '{\itG}_{0}', '{\itG}_{Multisine}','{\itG}_{Chirp}', 'Location', 'EastOutside');
+zoom on
+shg
+
+

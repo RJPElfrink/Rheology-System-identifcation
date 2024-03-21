@@ -17,7 +17,7 @@ N = 2000                                   # Number of points
 P = 1                                     # Number of repeated periods
 P_tf = 0                                   # Number of removed transient periods
 interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
-normalize_value   =[True,'STDev']      # Select normalization methode (None, STDev, Amplitude, RMS)
+normalize_value   =[True,'STDev']           # Select normalization methode (None, STDev, Amplitude, RMS)
 
 M =1
 
@@ -26,14 +26,14 @@ j_2=N/2                                    # Stopping freqency multisine
 phase_selection = 'Schroeder'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
 
 k_1 = 1                                    # Starting frequency chirp
-k_2 = 500                                  # Stopping frequency chirp
+k_2 = N/2                                  # Stopping frequency chirp
 
-noise_input_u=[False,200,]                   # Set the value for noise on input to true or false and include SNR in decibels
-noise_output_y=[False,200,]                  # Set the value for noise on output to true or false and include SNR in decibels
+noise_input_u=[True,40,]                   # Set the value for noise on input to true or false and include SNR in decibels
+noise_output_y=[True,40,]                  # Set the value for noise on output to true or false and include SNR in decibels
 
 window_set=[False,0.15]                    # Set window to true if needed, set value between 0-1, 0 is rectangular, 1 is Hann window
 
-plot_signal='Multisine'                    # Select 'Chirp' or 'Multsine' to change plots
+plot_signal='Chirp'                    # Select 'Chirp' or 'Multsine' to change plots
 
 """ Calculation of Time window"""
 check = rhs.check_variables(f_s,N,P,P_tf,window_set)
@@ -251,7 +251,10 @@ G_ML=np.mean(np.sum(Y_M,axis=0)/np.sum(U_M,axis=0),axis=0)
 G_MLn=np.sum(Y_n,axis=0)/np.sum(U_n,axis=0)
 var_G_ML=np.var(np.sum(Y_M,axis=0)/np.sum(U_M,axis=0),axis=0)
 
-#matlab_transfer=rhs.matlab_data(u_n_transient,y_n_transient,u_select,N,1/f_s,f_range,'Matlab_Chirptransient.mat')
+
+#matlab_transfer=rhs.matlab_input_file('Matlab_input_multisine.mat',u_n_transient,y_n_transient,u_select,N,1/f_s,f_range)
+#matlab_transfer=rhs.matlab_input_file('Matlab_input_multisineYU.mat',U_n,Y_n,f,N,1/f_s,f_range)
+
 
 #np.save('G_0_multisine.npy',G_0)
 
@@ -309,16 +312,18 @@ plt.ylabel('Amplitude (dB)')
 plt.xlabel('Time (s)')
 plt.show()
 
-#Figure of the created multisine signals frequency domain in Decibel
-plt.plot(t_transient[:N_tf],y_0[:(N_tf)]-y_0_transient[(N+N_tf):(N+N_tf+N_tf)],label='y-y$_p$')
-plt.plot(t_transient[:N_tf],transient_analytic[:N_tf],label='analytic')
-#plt.plot(t_transient[:N_tf],y_0[:(N_tf)]-y_0_transient[:N_tf],label='y-y$_p$')
-plt.yscale('log')
-plt.ylabel('y-y$_p$')
-plt.legend()
-plt.xlabel('Time[s]')
-plt.title(f'Transient detection of ouput y over steady output y_p, where y_p is Period number {P_tf+1} ')
-plt.show()
+if P_tf!=0:
+
+    #Figure of the created signal transient state
+    plt.plot(t_transient[:N_tf],y_0_transient[:N_tf]-y_0[-N_tf:],label='y-y$_p$')
+    plt.plot(t_transient[:N_tf],y_0[-N_tf:]-y_0_transient[:N_tf],label='y-y$_p$')
+    plt.plot(t_transient[:N_tf],transient_analytic[:N_tf],label='analytic')
+    plt.yscale('log')
+    plt.ylabel('y-y$_p$')
+    plt.legend()
+    plt.xlabel('Time[s]')
+    plt.title(f'Transient detection of ouput y over steady output y_p, where y_p is Period number {P_tf+1} ')
+    plt.show()
 
 # Phase plot of the FRF transferfunction with multisine
 plt.plot(f,rhs.DB(abs(G_0)),'-',label=f'G_0 {plot_signal}')
@@ -369,13 +374,13 @@ plt.show()
 
 
 # Load the MATLAB file
-data = loadmat('G_output.mat')
+#data = loadmat('G_output.mat')
 
 # Access the 'output_data' structure
-output_data = data['output_data']
+#output_data = data['output_data']
 
-G_data = np.squeeze(output_data['G'][0,0])
+#G_data = np.squeeze(output_data['G'][0,0])
 
-plt.plot(f_range,rhs.DB(G_data))
-plt.xscale('log')
-plt.show()
+#plt.plot(f_range,rhs.DB(G_data))
+#plt.xscale('log')
+#plt.show()

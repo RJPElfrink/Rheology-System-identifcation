@@ -46,18 +46,26 @@ save(['G_output.mat'], 'output_data');
 
 
 
-
-
 %% CALCULATE G FOR JUST ONE MEASUREMENT, INPUT IS .MAT FILE
-
+clear all; 
 method.order        =   2; %order of the local polynomial approximation (default 2) 
 method.dof          =   1; %degrees of freedom of the (co-)variance estimates = equivalent number of 
 %                                               independent experiments - 1 (default ny) 
-method.transient    = 	1;%determines the estimation of the transient term (optional; default 1)  
+method.transient    = 	0;%determines the estimation of the transient term (optional; default 1)  
 %                                                   1: transient term is estimated 
 %                                                   0: no transient term is estimated 
 
-data=load('Matlab_input.mat')
+test=load('Matlab_input_multisine.mat')
+
+data = struct('u', [], 'y', [], 'r', [], 'N', [], 'Ts', [], 'ExcitedHarm', []);
+%data = struct('u', [], 'y', [], 'N', [], 'Ts', [], 'ExcitedHarm', []);
+data.u = test.u;                             % row index is the input number; the column index the time instant (in samples) 
+data.y = test.y;                             % row index is the output number; the column index the time instant (in samples) 
+data.r = test.r;                             % one period of the reference signal is sufficient 
+data.N = test.N;                             % number of samples in one period 
+data.Ts = test.Ts;                         % sampling period 
+data.ExcitedHarm = test.ExcitedHarm;         % excited harmonics multisine excitation
+
 [CZ, Z, freq, G, CvecG, dof, CL] = FastLocalPolyAnal(data, method);
 
 % FRF and its variance
@@ -81,6 +89,31 @@ output_data.G = squeeze(G);                        % estimated frequency respons
 save('G_output.mat', 'output_data');
 
 %G1=G;varGn1=varGn;varGNL1=varGNL;freq1=freq;
+
+
+%% Transfer function FRF
+g = 2.5; lambda = 1.5;
+sys = tf(g,[1, 1/lambda]);
+
+% Bode Plot for Designed System
+[mag,phase,wout] = bode(sys,freq*2*pi);
+mag_tf = squeeze(mag);
+phase_tf = deg2rad(squeeze(phase));
+G_tf=mag_tf.*exp(1i*phase_tf);
+
+% estimated BLA, its noise and total variances
+figure()
+%semilogx(freq, db(G), 'k', freq, db(varGn)/2, 'g', freq, db(varGNL)/2, 'r')
+semilogx(freq, db(G), 'k', freq, db(G_tf),'g')
+%semilogx(freq, db(G), 'k', freq,  db(varGNL)/2, 'r',freq1, db(G1), 'b', freq1, db(varGNL1)/2, 'g')
+%xlim(0.01,5)
+xlabel('Frequency (Hz)')
+ylabel('{\itG}_{BLA} (dB)')
+title('FRF of Multisine, method: order=2,dof=1,transient=0')
+legend(  '{\itG}_{Multisine}','{\itG}_{0}', 'Location', 'EastOutside');
+zoom on
+shg
+
 %% FUNCTION FOR THE PYTHON MATLAB ENGINE
 
 
@@ -134,19 +167,3 @@ end
 
 
 end
-
-%%
-
-
-% estimated BLA, its noise and total variances
-figure(2)
-semilogx(freq, db(G), 'k', freq, db(varGn)/2, 'g', freq, db(varGNL)/2, 'r')
-%semilogx(freq, db(G), 'k', freq,  db(varGNL)/2, 'r',freq1, db(G1), 'b', freq1, db(varGNL1)/2, 'g')
-xlim(0.01,5)
-xlabel('Frequency (Hz)')
-ylabel('{\itG}_{BLA} (dB)')
-title('Estimated BLA and its variances')
-legend('{\itG}_{BLA}',  'total variance','{\itG}_{BLA1}',  'total variance 1', 'Location', 'EastOutside');
-zoom on
-shg
-
