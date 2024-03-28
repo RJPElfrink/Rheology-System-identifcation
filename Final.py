@@ -16,25 +16,25 @@ f_s = 20                                   # Sample frequency
 N = 2000                                   # Number of points
 P = 1                                      # Number of repeated periods
 P_tf = 0                                   # Number of removed transient periods
-interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
-normalize_value   =[True,'STDev']          # Select normalization methode (None, STDev, Amplitude, RMS)
 
 M = 2
 
-j_1=1                                      # Starting frequency multisine
-j_2=N/4                                    # Stopping freqency multisine
-phase_selection = 'Schroeder'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
+plot_signal='Multisine'                    # Select 'Chirp' or 'Multsine' to change plots
 
-k_1 = 1                                    # Starting frequency chirp
-k_2 = N/4                                  # Stopping frequency chirp
+multisine=['Random',1,N/2]       # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman) # Starting frequency multisine # Stopping freqency multisine#phase_selection =
 
-noise_input_u=[False,40,]                   # Set the value for noise on input to true or false and include SNR in decibels
-noise_output_y=[False,40,]                  # Set the value for noise on output to true or false and include SNR in decibels
+chirp=[1,N/4]                           # Starting frequency chirp, Stopping frequency chirp
 
 window_set=[False,0.15]                    # Set window to true if needed, set value between 0-1, 0 is rectangular, 1 is Hann window
 
-plot_signal='Multisine'                    # Select 'Chirp' or 'Multsine' to change plots
+interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
+normalize_value   =[True,'STDev',1,0]      # Select normalization methode (None, STDev, Amplitude, RMS)
 
+noise_input_u=[True,40,]                   # Set the value for noise on input to true or false and include SNR in decibels
+noise_output_y=[True,40,]                  # Set the value for noise on output to true or false and include SNR in decibels
+
+
+#SET LPM
 # To calculate the LocalPolynomialMeasurement set it to True
 # Values indicate method.order[2] order of approximation
 # method.dof [1] degrees of freedom, independent experiments
@@ -75,20 +75,20 @@ if P<=P_tf:
     raise ValueError("The number of periods P must be larger then the removed amount of transient free prediods P_tf")
 
 # Calculation of the input signal for the multisine signal over the entire transient time period
-u_mutlisine, phase_multisine=rhs.multisine(f_s,N,P, [j_1,j_2],phase_response=phase_selection,time_domain=True)
+u_mutlisine, phase_multisine=rhs.multisine(f_s,N, [multisine[1],multisine[2]],phase_response=multisine[0])
 
 # Calculation of the input signal for the multisine signal over the entire transient time period
-u_chirp=rhs.chirp_exponential(f_s,N,P,[k_1,k_2])
+u_chirp=rhs.chirp_exponential(f_s,N,P,[chirp[0],chirp[1]])
 
 #Select u_chirp or u_multi as tranient signal for figure generation
 if plot_signal=='Multisine':
     #u_transient=u_mutlisine
     u_select   = u_mutlisine
-    band_range = [j_1,j_2]
+    band_range = [multisine[1],multisine[2]]
 elif plot_signal=='Chirp':
     #u_transient=u_chirp
     u_select = u_chirp
-    band_range = [k_1,k_2]
+    band_range = [chirp[0],chirp[1]]
 excitedharm_range = np.linspace(band_range[0],band_range[1],int(band_range[1]-band_range[0])+1,endpoint=True)
 f_range = excitedharm_range*f_0
 u_transient= np.tile(u_select, P)
@@ -97,7 +97,7 @@ if P_tf!=0:
 
 
 # Save the set transient basic signal and apply further normalization an interpolation
-u_0= u_select
+u_0 = u_select
 u_0_transient=u_transient
 
 # Calculations of the multiphase crest factor
@@ -130,7 +130,7 @@ if interpolation_kind[0]==True:
 
 # Normalize the input signal to None, STDev, Amplitude or RMS
 if normalize_value[0]==True:
-    u_0_transient=rhs.normalization(u_0_transient,normalize=str(normalize_value[1]))
+    u_0_transient,x_norm=rhs.normalization(u_0_transient,str(normalize_value[1]), normalize_value[2],normalize_value[3])
 
 
 # Initialize lists to collect data
@@ -223,6 +223,12 @@ G_LPM=np.array(np.mean(np.squeeze(G_LPM_m),axis=0))
 var_G_ML=np.var(G_ML_m,axis=0)
 var_G_etfe=np.var(G_etfe_p,axis=0)
 
+matlab_transfer=rhs.matlab_input_file('Matlab_input_randmulti_nonoise_20.mat',u_0_transient,y_0_transient,u_select,N,1/f_s,f_range)
+matlab_transfer=rhs.matlab_input_file('Matlab_input_randmulti_noise_20.mat',u_n_transient,y_n_transient,u_select,N,1/f_s,f_range)
+#matlab_transfer=rhs.matlab_input_file('Matlab_input_multisineYU.mat',U_M,Y_M,f,N,1/f_s,f_range)
+
+
+
 # Save specified signal
 #G_0=np.save('G_0.npy',G_0)
 #G_1_m=np.save('G_1_m.npy',G_ML_m)
@@ -230,6 +236,7 @@ var_G_etfe=np.var(G_etfe_p,axis=0)
 #G_3_m=np.save('G_3_m.npy',G_LPM_m)
 #G_4_m=np.save('G_4_m.npy',G_ML_m)
 #G_5_m=np.save('G_5_m.npy',G_LPM_m)
+
 
 #G_1_multi_trans=G_ML[:int(band_range[1])]
 #G_2_multi_window=G_ML[:int(band_range[1])]

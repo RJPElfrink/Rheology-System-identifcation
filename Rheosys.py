@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.io import savemat
 import matlab.engine
+from scipy.fft import fft,ifft
 
 # Functions for generating different types of signals
 
@@ -46,38 +47,51 @@ def chirp_linear(f_s, N, P, frequency_limits):
 
 # Functions for normalization of signals
 
-def normalize_amp(signal):
+def normalize_amp(signal,maximum=1,x_norm=0):
     """
     Normalizes the amplitude of the signal between -1 and 1.
     """
-    return signal / np.max(np.abs(signal))
+    if x_norm==0:
+        x_norm=np.max(np.abs(signal))
+    normalsignal= (signal / x_norm)*maximum
 
-def normalize_rms(signal):
-    """
-    Normalizes the signal by its root mean square value.
-    """
-    rms_val = np.sqrt(np.mean(np.square(abs(signal))))
-    return signal / rms_val if rms_val > 0 else signal
+    return normalsignal,x_norm
 
-def normalize_stdev(signal):
+def normalize_rms(signal,maximum=1,x_norm=0):
     """
-    Normalizes the signal by its standard deviation.
+    Normalizes the signals power by its root mean square value.
     """
-    std_val = np.std(signal)
-    return signal / std_val if std_val > 0 else signal
+    if x_norm==0:
+        x_norm = np.sqrt(np.mean(np.square(abs(signal))))
+    normalsignal= (signal / x_norm)*maximum
 
-def normalization(signal, normalize='None'):
+    return normalsignal,x_norm
+
+def normalize_stdev(signal,maximum=1,x_norm=0):
+    """
+    Normalizes the signal power by its standard deviation.
+    """
+    if x_norm==0:
+        x_norm = np.std(signal)
+
+    print("x_norm", x_norm)
+    normalsignal= (signal / x_norm)*maximum
+
+    return normalsignal,x_norm
+
+def normalization(signal, normalize ,maximum ,x_norm):
     """
     Normalizes the signal based on the specified method.
     """
+    print("test")
     if normalize == 'Amplitude':
-        return normalize_amp(signal)
+        return normalize_amp(signal,maximum,x_norm)
     elif normalize == 'RMS':
-        return normalize_rms(signal)
+        return normalize_rms(signal,maximum,x_norm)
     elif normalize == 'STDev':
-        return normalize_stdev(signal)
+        return normalize_stdev(signal,maximum,x_norm)
     elif normalize == 'None':
-        return signal
+        return signal,x_norm
     else:
         raise ValueError('Normalize must be "Amplitude", "RMS", "STDev", or "None"')
 
@@ -113,7 +127,7 @@ def newman_phase(J, j1):
 
 # Main function for generating multisine signals
 
-def multisine(f_s, N, P, frequency_limits, A_vect=None,phase_response='Schroeder', Tau=1 , time_domain=True):
+def multisine(f_s, N, frequency_limits, A_vect=None,phase_response='Schroeder', Tau=1 , time_domain=True):
     """
     Generates a multisine signal.
     Parameters:
@@ -157,6 +171,70 @@ def multisine(f_s, N, P, frequency_limits, A_vect=None,phase_response='Schroeder
             u += A[j] * np.cos(j_range[j] * t * 2 * np.pi * f_0 + phase[j])
 
     return u, phase
+
+def crest_optimization(signal,Clip_value=0.9,R=100,rms_value=1,variable=False):
+    """
+    Optimizes the signal u by applying a clipping algorithm to minimize the crest factor.
+
+    Parameters:
+    u (np.ndarray): The input signal to be optimized.
+    Clip (float): The clipping level relative to the maximum absolute value of the signal.
+    R (int, optional): The number of iterations for the clipping algorithm. Default is 100.
+
+    Returns:
+    np.ndarray: The optimized signal after clipping.
+    list: The history of crest factors for each iteration.
+    """
+    U = fft(signal)
+    UFixed = np.abs(U)  # amplitude to be respected
+
+    Cr = []  # Crest factor history
+    if variable==True:
+        Clip=np.linspace(Clip_value,1,R)
+    else:
+        Clip=np.ones(R)*Clip_value
+
+    for k in range(R):  # clipping algorithm
+        u = np.real(ifft(U))
+        current_cr = np.max(np.abs(u))/rms_value
+        Cr.append(current_cr)
+        uClip = Clip[k] * current_cr
+        u[np.abs(u) > uClip] = u[np.abs(u) > uClip] / np.abs(u[np.abs(u) > uClip]) * uClip
+        U = fft(u)
+        U = UFixed * np.exp(1j * np.angle(U))  # restore original amplitude spectrum
+
+    return u, Cr,uClip
+
+def log_amplitude(N, k1, k2, kdens):
+    """
+    Generates a vector of length N where elements corresponding to logarithmically spaced
+    frequencies between k1 and k2 are set to 1, and all other elements are 0.
+
+    Parameters:
+    N (int): The length of the output vector.
+    k1 (int): The starting frequency.
+    k2 (int): The stopping frequency.
+    kdens (int): The number of frequencies in a decade.
+
+    Returns:
+    np.ndarray: A vector of length N with specified frequencies set to 1.
+    """
+    # Create logarithmic grid in [k1 k2]
+    k1Log = np.log10(k1)
+    k2Log = np.log10(k2)
+    fLog = np.round(10**np.arange(k1Log, k2Log + 1/kdens, 1/kdens))
+
+    # Filter out duplicates and ensure the frequencies fall within the range [1, N]
+    fAll = np.unique(fLog).astype(int)
+    fAll = fAll[(fAll >= 1) & (fAll <= N)]
+
+    # Initialize vector A with zeros
+    A = np.zeros(N, dtype=int)
+
+    # Set the elements corresponding to the logarithmically spaced frequencies to 1
+    A[fAll-1] = 1  # -1 for zero-based indexing in Python
+
+    return A,fAll
 
 # Noise generation
 

@@ -11,7 +11,7 @@ method.transient    = 	1;%determines the estimation of the transient term (optio
 %                                                   0: no transient term is estimated 
 
 % load multisine data and append values
-multi=load('Matlab_input_multisine.mat');
+multi=load('Matlab_input_randmulti_nonoise.mat');
 
 data_multi = struct('u', [], 'y', [], 'r', [], 'N', [], 'Ts', [], 'ExcitedHarm', []);
 data_multi.u = multi.u;                             % row index is the input number; the column index the time instant (in samples) 

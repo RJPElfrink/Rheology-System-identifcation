@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
-from scipy.fft import fft
+from scipy.fft import fft,ifft
 from scipy import signal
 import Rheosys as rhs
 from scipy.io import loadmat
@@ -12,8 +12,8 @@ from scipy.io import loadmat
 Lambda_constant=1.5                        # Value for lambda n/g
 g_constant=2.5                             # Value for spring constant g
 
-f_s = 20                                   # Sample frequency
-N = 2000                                   # Number of points
+f_s = 2                                   # Sample frequency
+N = 200                                   # Number of points
 P = 1                                     # Number of repeated periods
 P_tf = 0                                   # Number of removed transient periods
 interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
@@ -23,7 +23,7 @@ M =1
 
 j_1=1                                      # Starting frequency multisine
 j_2=N/2                                    # Stopping freqency multisine
-phase_selection = 'Schroeder'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
+phase_selection = 'Random'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
 
 k_1 = 1                                    # Starting frequency chirp
 k_2 = N/2                                  # Stopping frequency chirp
@@ -33,7 +33,7 @@ noise_output_y=[True,40,]                  # Set the value for noise on output t
 
 window_set=[False,0.15]                    # Set window to true if needed, set value between 0-1, 0 is rectangular, 1 is Hann window
 
-plot_signal='Chirp'                    # Select 'Chirp' or 'Multsine' to change plots
+plot_signal='Multisine'                    # Select 'Chirp' or 'Multsine' to change plots
 
 """ Calculation of Time window"""
 check = rhs.check_variables(f_s,N,P,P_tf,window_set)
@@ -71,7 +71,7 @@ if P<=P_tf:
     raise ValueError("The number of periods P must be larger then the removed amount of transient free prediods P_tf")
 
 # Calculation of the input signal for the multisine signal over the entire transient time period
-u_mutlisine, phase_multisine=rhs.multisine(f_s,N,P, [j_1,j_2],phase_response=phase_selection,time_domain=True)
+u_mutlisine, phase_multisine=rhs.multisine(f_s,N,[j_1,j_2],phase_response=phase_selection,time_domain=True)
 
 # Calculation of the input signal for the multisine signal over the entire transient time period
 u_chirp=rhs.chirp_exponential(f_s,N,P,[k_1,k_2])
@@ -106,7 +106,7 @@ if window_set[0]==True:
 
 # Normalize the input signal to None, STDev, Amplitude or RMS
 if normalize_value[0]==True:
-    u_0_transient=rhs.normalization(u_0_transient,normalize=str(normalize_value[1]))
+    u_0_transient,x_norm=rhs.normalization(u_0_transient,normalize=str(normalize_value[1]),maximum=1,x_norm=0)
 
 # Sampled transient signal as a function of t
 if interpolation_kind[0]==True:
@@ -176,7 +176,7 @@ for m in range(M):
 
     # Normalize the input signal to None, STDev, Amplitude or RMS
     if normalize_value[0]==True:
-        u_n_transient=rhs.normalization(u_n_transient,normalize=str(normalize_value[1]))
+        u_n_transient,x_norm=rhs.normalization(u_n_transient,normalize=str(normalize_value[1]),maximum=1,x_norm=0)
 
     # Compute the response output y by, input noise is only on measurement not on generator, so the model is inserted with u_0
     t_n_out,y_n_out, _ = signal.lsim(s1, U=u_0_transient, T=t_transient)
