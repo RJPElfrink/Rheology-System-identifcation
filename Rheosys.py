@@ -5,7 +5,7 @@ from scipy.fft import fft,ifft
 
 # Functions for generating different types of signals
 
-def chirp_exponential(f_s, N, P, frequency_limits):
+def chirp_exponential(f_s, N, frequency_limits):
     """
     Generates an exponential chirp signal.
     Parameters:
@@ -21,7 +21,6 @@ def chirp_exponential(f_s, N, P, frequency_limits):
     k_1, k_2    = frequency_limits
     L           = T / np.log(k_2 / k_1)
     signal      = np.sin(2 * np.pi * f_0 * k_1 * L * (np.exp(time / L) - 1))
-    #signal      = np.tile(signal, P)
 
     return signal
 
@@ -172,7 +171,7 @@ def multisine(f_s, N, frequency_limits, A_vect=None,phase_response='Schroeder', 
 
     return u, phase
 
-def crest_optimization(signal,Clip_value=0.9,R=100,rms_value=1,variable=False):
+def crest_optimization(signal,Clip_value=0.9,R=100,rms_value=0,variable=False):
     """
     Optimizes the signal u by applying a clipping algorithm to minimize the crest factor.
 
@@ -188,6 +187,7 @@ def crest_optimization(signal,Clip_value=0.9,R=100,rms_value=1,variable=False):
     U = fft(signal)
     UFixed = np.abs(U)  # amplitude to be respected
 
+
     Cr = []  # Crest factor history
     if variable==True:
         Clip=np.linspace(Clip_value,1,R)
@@ -196,14 +196,17 @@ def crest_optimization(signal,Clip_value=0.9,R=100,rms_value=1,variable=False):
 
     for k in range(R):  # clipping algorithm
         u = np.real(ifft(U))
-        current_cr = np.max(np.abs(u))/rms_value
+        if rms_value!=0:
+            rms_iter=rms(u)
+        else: rms_iter=rms_value
+        current_cr = np.max(np.abs(u))/rms_iter
         Cr.append(current_cr)
         uClip = Clip[k] * current_cr
         u[np.abs(u) > uClip] = u[np.abs(u) > uClip] / np.abs(u[np.abs(u) > uClip]) * uClip
         U = fft(u)
         U = UFixed * np.exp(1j * np.angle(U))  # restore original amplitude spectrum
 
-    return u, Cr,uClip
+    return u.copy()
 
 def log_amplitude(N, k1, k2, kdens):
     """
@@ -370,8 +373,13 @@ def check_variables(samplefrequency,samplenumbers,periods,transientperiod,window
         raise ValueError(f"The product of P_tf ({P_tf}) and N ({N}) must be an integer, decimal number of periods can be processed. Received {N_tf} instead.")
     if window[0]==True  and P_tf %1 !=0 :
         raise ValueError(f'When applying the window on the input signal, one can not select a percentage valued transient period P_tf. Select P_tf {P_tf} either as {int(np.floor(P_tf))} or {int(np.ceil(P_tf))}')
+    if P<P_tf:
+        raise ValueError("The number of periods P must be larger then the removed amount of transient free prediods P_tf")
 
-def matlab_input_file(filename,input,output,reference,samplenumbers,sampletime,frequencyrange):
+
+
+
+def matlab_input_file(filename,input,output,reference,samplenumbers,sampletime,frequencyrange,G):
         # Organizing the data into the specified structure
     # Path for the MATLAB .m file with .m extension
     m_filename = filename #if filename.endswith('.mat') else f"{filename}.mat"
@@ -388,7 +396,8 @@ def matlab_input_file(filename,input,output,reference,samplenumbers,sampletime,f
         'r': reference_array,
         'N': np.array([samplenumbers]),
         'Ts': np.array([sampletime]),
-        'ExcitedHarm': frequencyrange_array
+        'ExcitedHarm': frequencyrange_array,
+        'G': np.array([G])
     }
 
     # Save the dictionary to a .mat file structured as a 1x1 struct

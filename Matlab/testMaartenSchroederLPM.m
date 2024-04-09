@@ -6,7 +6,8 @@ clc
 
 %% load data
 
-data = load('Matlab_input_multisine.mat');
+data = load('Matlab_input_chirp_test.mat');
+%data = load('Matlab_input_randmulti_noise_20.mat');
 
 %% variables and data
 
@@ -42,7 +43,7 @@ rTest=rUp;
 
 % improve crest factor 
 figure; plot(tUp,rUp);
-for iter=1:10
+for iter=1:1
 rUp = min(rUp,rMax); rUp=max(rUp,-rMax);
 Rtemp = fft(rUp);
 R = zeros(N*nUp,1);
@@ -73,7 +74,10 @@ r = rUp(1:nUp:end);
 %r = rTest(1:nUp:end);
 y = yUp(1:nUp:end);
 
-%% LPM
+Ytest=fft(y);Utest=fft(u);Gtest=Ytest./Utest;
+
+%%
+
 
 data_multi = struct('u', [], 'y', [], 'r', [], 'N', [], 'Ts', [], 'ExcitedHarm', []);
 data_multi.u = u;                             % row index is the input number; the column index the time instant (in samples) 
@@ -94,7 +98,16 @@ method.transient    = 	1;%determines the estimation of the transient term (optio
 
 % FRF and its variance
 G_multi_tran = squeeze(G_m).';
-
+%% LPM
+test = load('Matlab_input_chirp_test.mat');
+data_chirp = struct('u', [], 'y', [], 'r', [], 'N', [], 'Ts', [], 'ExcitedHarm', [],'order',[],'dof',[],'transient',[]);
+%data = struct('u', [], 'y', [], 'N', [], 'Ts', [], 'ExcitedHarm', []);
+data_chirp.u = test.u;                             % row index is the input number; the column index the time instant (in samples) 
+data_chirp.y = test.y;                             % row index is the output number; the column index the time instant (in samples) 
+data_chirp.r = test.r;                             % one period of the reference signal is sufficient 
+data_chirp.N = test.N;                             % number of samples in one period 
+data_chirp.Ts = test.Ts;                         % sampling period 
+data_chirp.ExcitedHarm = test.ExcitedHarm;         % excited harmonics multisine excitation
 %% no transient removal
 method.order        =   2; %order of the local polynomial approximation (default 2) 
 method.dof          =   1; %degrees of freedom of the (co-)variance estimates = equivalent number of 
@@ -102,26 +115,31 @@ method.dof          =   1; %degrees of freedom of the (co-)variance estimates = 
 method.transient    = 	0;%determines the estimation of the transient term (optional; default 1)  
 
 % [CZ_m, Z_m, freq_m, G_m, CvecG_m, dof_m, CL_m] = FastLocalPolyAnal(data_multi, method);
-[CZ_m, Z_m, freq_m, G_m, CvecG_m, dof_m, CL_m] = ArbLocalPolyAnal(data_multi, method);
+[CZ_m, Z_m, freq_m, G_m, CvecG_m, dof_m, CL_m] = FastLocalPolyAnal(data_chirp, method);
 
 % FRF and its variance
 G_multi_notran = squeeze(G_m).';
 
 %% plots
+dif=ones(1,998)*0.005-zeros(1,998);
 figure; hold on
-plot(f(lines),db(G0(lines)),'d')
-plot(f(lines),db(G_multi_tran(lines-1)))
-plot(f(lines),db(G_multi_notran(lines-1)))
-plot(f(lines),db(G0(lines)-G_multi_tran(lines-1)))
+plot(f(lines),db(G0(lines)),'-o')
+plot(f(lines),db(Gtest(lines)),'-+')
+%plot(f(lines),db(G_multi_tran(lines-1)))
+%plot(f(lines),db(G_multi_notran(lines-1)))
+%plot(f(lines),db(G0(lines)-G_multi_tran(lines-1)))
 plot(f(lines),db(G0(lines)-G_multi_notran(lines-1)))
+plot(f(lines),db(G0(lines)-Gtest(lines)),'-<')
+plot(f(lines),db(dif))
+set(gca, 'XScale', 'log');
 
-legend('G_0','\hat{G} trans. est.','\hat{G} without trans. est.','resid \hat{G} trans. est.','resid \hat{G} without trans. est.')
+legend('G_0','Gtest ' ,'\hat{G} trans. est.','\hat{G} without trans. est.','resid \hat{G} trans. est.','resid \hat{G} without trans. est.','resid of G0-Gtest value')
 %%
 figure;
 
 semilogx(f(lines),db(G0(lines)),'d',f(lines),db(G_multi_tran(lines-1)),'d',f(lines),db(G_multi_notran(lines-1)),'D',f(lines),db(G0(lines)-G_multi_tran(lines-1)),f(lines),db(G0(lines)-G_multi_notran(lines-1)))
-
-legend('G_0','\hat{G} trans. est.','\hat{G} without trans. est.','resid \hat{G} trans. est.','resid \hat{G} without trans. est.')
+title("Random multisine with crest optimization")
+legend('G_0','G trans. est.','G without trans. est.','Bias G trans. est.','Bias G without trans. est.')
 
 function x=LocalRMS(u)
 % calculate the rms value of a signal
