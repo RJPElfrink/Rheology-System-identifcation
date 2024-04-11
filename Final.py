@@ -15,10 +15,10 @@ g_constant=2.5                             # Value for spring constant g
 
 f_s = 20                                   # Sample frequency
 N = 2000                                   # Number of points
-P = 1                                      # Number of repeated periods
+P = 10                                      # Number of repeated periods
 P_tf = 0                                   # Number of removed transient periods
 
-M = 1
+M = 10
 
 plot_signal='Multisine'                    # Select 'Chirp' or 'Multsine' to change plots
 
@@ -33,19 +33,19 @@ interpolation_param = { 'set'   : True,         # Set to True to activate interp
                         'kind'  : 0}            # Set kind to 0 for Zero Order Hold, optional every odd power number including 2
 
 normalization_param = { 'set'   : True,         # Set to True to activate normalization
-                        'method': 'STDev',      # Select normalization methode (None, STDev, Amplitude, RMS)
+                        'method': 'STD',      # Select normalization methode (None, STDev, Amplitude, RMS)
                         'max'   : 1,            # Optional to multiply signal with a value to set amplitude hight, default =1
                         'x_norm': 0,}           # Equal normalization of previous dignal, x_norm is 'method' value of previous normalizaiton, 0 is default set 'method'
 
-noise_param     = { 'inputset'  : True,         # Set the value for noise on input to true or false and include SNR in decibels
+noise_param     = { 'inputset'  : False,         # Set the value for noise on input to true or false and include SNR in decibels
                     'inputdb'   : 40,
-                    'ouputset'  : True,         # Set the value for noise on output to true or false and include SNR in decibels
-                    'ouputdb'   : 40}
+                    'outputset'  : True,         # Set the value for noise on output to true or false and include SNR in decibels
+                    'outputdb'   : 40}
 
-window_param        = { 'set'   : True,        # Set to True to activate windwo
+window_param        = { 'set'   : False,        # Set to True to activate windwo
                         'r'     : 0.15}         # Set value of R between 0-1, 0 is rectangular, 1 is Hann window
 
-optimizecrest_param  = {'set'   : True,       # Set to True to optimize the signal the crest clipping algorithm
+optimizecrest_param  = {'set'   : False,       # Set to True to optimize the signal the crest clipping algorithm
                        'clip'   : 0.9,          # Set clipping value which clips the crest value
                        'R'      : 10,          # Amount of realization to test the optimized signal u
                       'variable': False,}       # Varible clipping value, True to linearly change 'clip' value from set value to 1
@@ -57,7 +57,6 @@ LPM_param           = {'set'    : True,        # Set to True To calculate the Lo
                    'order'      : 2,            # method.order[2] order of approximation
                    'dof'        : 1,            # method.dof degrees of freedom, independent experiments default = 1
                    'transient'  : 1}            # method.transient, include transien estimation = 1, exclude transient estimation = 0
-
 
 
 """ Calculation of Time window"""
@@ -93,8 +92,9 @@ The first steady state periode of the total signal is used to calculate G_0
 
 # Creation of the multisine signal, included frequency vector logarithmic or standard
 if multisine_log_param['set']:
-    A_multi,testlog=rhs.log_amplitude(N,multisine_param['j1'],multisine_param['j2'],multisine_log_param['decade'])
+    A_multi,f_log=rhs.log_amplitude(N,multisine_param['j1'],multisine_param['j2'],multisine_log_param['decade'])
     u_mutlisine, phase_multisine=rhs.multisine(f_s,N, [multisine_param['j1'],multisine_param['j2']],phase_response=multisine_param['phase'],A_vect=A_multi)
+    t=t[f_log]
 else:
     A_multi=np.ones(N)
     u_mutlisine, phase_multisine=rhs.multisine(f_s,N, [multisine_param['j1'],multisine_param['j2']],phase_response=multisine_param['phase'],A_vect=A_multi)
@@ -151,7 +151,7 @@ if interpolation_param['set']:
 
 # Normalize the input signal to None, STDev, Amplitude or RMS
 if normalization_param['set']:
-    u_0_transient,x_norm=rhs.normalization(u_0_transient,str(normalization_param['method']),normalization_param['max'],normalization_param['x_norm'])
+    u_0_transient=rhs.normalization(u_0_transient,normalization_param['method'],normalization_param['max'])
 
 
 # Initialize lists to collect data
@@ -179,9 +179,9 @@ for m in range(M):
     # Compute the response output y by
     t_out,y_out, _ = signal.lsim(s1, U=u_0_transient, T=t_transient)
 
-    # Application of measurement noise on the ouput
-    if noise_param['ouputset']:
-        n_y = rhs.add_noise_with_snr(y_out,noise_param['ouputdb'])
+    # Application of measurement noise on the output
+    if noise_param['outputset']:
+        n_y = rhs.add_noise_with_snr(y_out,noise_param['outputdb'])
         y_n_transient= y_out + n_y
         y_0_transient=np.squeeze(y_out)          # y output in time domain entire transient signal
     else:
@@ -248,6 +248,30 @@ G_etfe=np.array(np.mean(G_etfe_m,axis=0))
 G_ML=np.array(np.mean(G_ML_m,axis=0))
 G_LPM=np.array(np.squeeze(np.mean(G_LPM_m,axis=0)))
 
+
+"""
+Calculations have been made, to export the right
+"""
+f_range=f_range[1:]
+G_0=G_0[1:int(band_range[1])]
+
+if LPM_param['set']:
+    G_export=G_LPM[:int(band_range[1])-1]
+    G_export_m=G_LPM_m
+else:
+    G_export=G_ML[1:int(band_range[1])]
+    G_export_m=G_ML_m
+
+
+# Save specified signal
+#rhs.export_data_for_visualization('data_visualization_test.csv',G_export, G_export_m,  f_range, G_0, band_range, N, P, u_p_steady,t, noise_param)
+
+# Example usage:
+data_path = 'multi_random_lpm'
+plot_title=rhs.create_plot_title(f_s, N, P, M, plot_signal, multisine_param, chirp_param, interpolation_param, normalization_param, noise_param, window_param, optimizecrest_param, multisine_log_param, LPM_param)
+rhs.export_data_for_visualization_pickle(data_path, G_export, G_export_m,  f_range, G_0, band_range, N, P, M, u_p_steady,t, noise_param, plot_title)
+
+break
 # FRF calculation by Maximum Likelihood
 var_G_ML=np.var(G_ML_m,axis=0)
 var_G_etfe=np.var(G_etfe_p,axis=0)
@@ -261,23 +285,20 @@ var_G_etfe=np.var(G_etfe_p,axis=0)
 
 
 
-# Save specified signal
-#G_0=np.save('G_0.npy',G_0)
-#G_1_m=np.save('G_1_m.npy',G_ML_m)
-#G_2_m=np.save('G_2_m.npy',G_ML_m)
-#G_3_m=np.save('G_3_m.npy',G_LPM_m)
-#G_4_m=np.save('G_4_m.npy',G_ML_m)
-#G_5_m=np.save('G_5_m.npy',G_LPM_m)
 
-f_range=f_range[1:]
-G_0=G_0[1:int(band_range[1])]
-G_1_multi_trans=G_ML[1:int(band_range[1])]
+#f_range=f_range[1:]
+G_0=G_0[:int(band_range[1])]
+G_1_multi_trans=G_ML
+#G_1_multi_trans=G_ML[1:int(band_range[1])]
 #G_2_multi_window=G_ML[:int(band_range[1])]
-G_3_multi_LPM=G_LPM[:int(band_range[1])-1]
+
+G_3_multi_LPM=G_LPM
+#G_3_multi_LPM=G_LPM[:int(band_range[1])-1]
 #G_4_chirp_window=G_ML
 #G_5_chirp_LPM=G_LPM[:int(band_range[1])]
 #G_6_rand_LPM=G_LPM
 #G_7_randclip_LPM=G_LPM[:int(band_range[1])]
+
 
 var_G_1_multi_trans=np.var(G_ML_m[:int(band_range[1])],axis=0)
 #var_G_2_multi_window=np.var(G_ML_m[:int(band_range[1])],axis=0)
@@ -289,21 +310,24 @@ var_G_3_multi_LPM=np.var(G_LPM_m[:int(band_range[1])],axis=0)
 
 dif_G_1_multi_trans=G_0-G_1_multi_trans
 #dif_G_2_multi_window=G_ML[:int(band_range[1])]-G_0[:int(band_range[1])]
-dif_G_3_multi_LPM=G_0-G_3_multi_LPM
+dif_G_3_multi_LPM=G_0[1:]-G_3_multi_LPM[:-1]
 #dif_G_4_chirp_window=G_ML-G_0[:int(band_range[1])]
 #dif_G_5_chirp_LPM=G_LPM[:int(band_range[1])]-G_0[:int(band_range[1])]
 #dif_G_6_rand_LPM=G_LPM-G_0[:int(band_range[1])]
 #dif_G_7_randclip_LPM=G_LPM[:int(band_range[1])]-G_0[:int(band_range[1])]
 
 
-
 # Phase plot of the FRF transferfunction with multisine
-plt.plot(f_range,rhs.DB(G_0[:int(band_range[1])]),'-',label='$\hat{G}_{0}$')
-plt.plot(f_range,rhs.DB(dif_G_3_multi_LPM),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
-plt.plot(f_range,rhs.DB(dif_G_1_multi_trans),'o',label='$\hat{G}_{1} Multisine schroeder transient$')
-plt.plot(f_range,rhs.DB(G_3_multi_LPM),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
+plt.plot(f_range,rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
 plt.plot(f_range,rhs.DB(G_1_multi_trans),'o',label='$\hat{G}_{1} Multisine schroeder transient$')
-plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["ouputdb"]} dB, ')
+plt.plot(f_range,rhs.DB(var_G_1_multi_trans),'-',label='$\hat{G}_{1} Var Multisine schroeder transient$')
+plt.plot(f_range,rhs.DB(dif_G_1_multi_trans),'o',label='$\hat{G}_{1} Bias Multisine schroeder transient$')
+plt.plot(f_range,rhs.DB(G_3_multi_LPM),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
+plt.plot(f_range[1:],rhs.DB(dif_G_3_multi_LPM),'o',label='$\hat{G}_{3}Bias Multisine schroeder LPM$')
+plt.plot(f_range,np.log10(abs(var_G_3_multi_LPM)),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
+plt.plot(f_range[1:],rhs.DB(dif_G_3_multi_LPM),'o',label='$\hat{G}_{3}Bias Multisine schroeder LPM$')
+plt.plot(f_range,rhs.DB(G_ML[:int(band_range[1])]-G_etfe[:int(band_range[1])]),'o',label='$\hat{G}_{1} Multisine schroeder transient$')
+plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
 plt.legend(loc='best')
 plt.xlim([f_s/N,f_s/2])
 #plt.ylim(-100,25)
@@ -313,6 +337,26 @@ plt.xlabel('Frequency (Hz)')
 plt.show()
 
 break
+
+# Phase plot of the FRF transferfunction with multisine
+plt.plot(f_log,rhs.DB(G_0[f_log-1]),'-',label='$\hat{G}_{0}$')
+plt.plot(f_log,rhs.DB(dif_G_3_multi_LPM[f_log-1]),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
+plt.plot(f_log,rhs.DB(dif_G_1_multi_trans[f_log-1]),'o',label='$\hat{G}_{1} Multisine schroeder transient$')
+plt.plot(f_log,rhs.DB(G_3_multi_LPM[f_log-1]),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
+plt.plot(f_log,rhs.DB(G_1_multi_trans[f_log-1]),'o',label='$\hat{G}_{1} Multisine schroeder transient$')
+plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
+plt.legend(loc='best')
+plt.xlim([f_s/N,f_s/2])
+#plt.ylim(-100,25)
+plt.xscale('log')
+plt.ylabel('Magnitude [dB]')
+plt.xlabel('Frequency (Hz)')
+plt.show()
+
+break
+
+
+
 
 
 """
@@ -330,7 +374,7 @@ plt.plot(f_range,rhs.DB(G_4_chirp_window),'o',label='$\hat{G}_{4}Chirp windowing
 #plt.plot(f_range,rhs.DB(G_5_chirp_LPM),'o',label='$\hat{G}_{5}Chirp LPM$')
 plt.plot(f_range,rhs.DB(G_6_rand_LPM),'o',label='$\hat{G}_{6}Multisine random LPM$')
 plt.plot(f_range,rhs.DB(G_7_randclip_LPM),'o',label='$\hat{G}_{7}Multisine random clip LPM$')
-plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["ouputdb"]} dB, ')
+plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
 plt.legend()
 plt.xlim([f_s/N,f_s/2])
 #plt.ylim(-100,25)
@@ -352,7 +396,7 @@ plt.plot(f_range,rhs.DB(dif_G_4_chirp_window),'o',label='$\hat{G}_{4}Chirp windo
 #plt.plot(f_range,rhs.DB(dif_G_5_chirp_LPM),'o',label='$\hat{G}_{5}Chirp LPM$')
 plt.plot(f_range,rhs.DB(dif_G_6_rand_LPM),'o',label='$\hat{G}_{6}Multisine random LPM$')
 plt.plot(f_range,rhs.DB(dif_G_7_randclip_LPM),'o',label='$\hat{G}_{7}Multisine random clip LPM$')
-plt.title(f'Bias of the FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["ouputdb"]} dB, ')
+plt.title(f'Bias of the FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
 plt.legend()
 plt.xlim([f_s/N,f_s/2])
 #plt.ylim(-100,25)
@@ -375,7 +419,7 @@ plt.plot(f_range,np.log10(abs(var_G_4_chirp_window)),'o',label='$\hat{G}_{4}Chir
 plt.plot(f_range,np.log10(abs(var_G_5_chirp_LPM)),'o',label='$\hat{G}_{5}Chirp LPM$')
 plt.plot(f_range,np.log10(abs(var_G_6_rand_LPM)),'o',label='$\hat{G}_{6}Multisine random LPM$')
 plt.plot(f_range,np.log10(abs(var_G_7_randclip_LPM)),'o',label='$\hat{G}_{7}Multisine random clip LPM$')
-plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["ouputdb"]} dB, ')
+plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
 plt.legend()
 plt.xlim([f_s/N,f_s/2])
 #plt.ylim(-100,25)
@@ -393,7 +437,7 @@ plt.plot(f_range,rhs.DB(dif_G_4_chirp_window),'o',label='$\hat{G}_{4}Chirp windo
 #plt.plot(f_range,rhs.DB(dif_G_5_chirp_LPM),'o',label='$\hat{G}_{5}Chirp LPM$')
 plt.plot(f_range,rhs.DB(dif_G_6_rand_LPM),'o',label='$\hat{G}_{6}Multisine random LPM$')
 plt.plot(f_range,rhs.DB(dif_G_7_randclip_LPM),'o',label='$\hat{G}_{7}Multisine random clip LPM$')
-plt.title(f'Bias of the FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["ouputdb"]} dB, ')
+plt.title(f'Bias of the FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
 plt.legend()
 plt.xlim([f_s/N,f_s/2])
 #plt.ylim(-100,25)
@@ -479,7 +523,7 @@ plt.yscale('log')
 plt.ylabel('y-y$_p$')
 plt.legend()
 plt.xlabel('Time[s]')
-plt.title(f'Transient detection of ouput y over steady output y_p, where y_p is Period number {P_tf+1} ')
+plt.title(f'Transient detection of output y over steady output y_p, where y_p is Period number {P_tf+1} ')
 plt.show()
 
 

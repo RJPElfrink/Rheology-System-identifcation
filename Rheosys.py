@@ -2,7 +2,8 @@ import numpy as np
 from scipy.io import savemat
 import matlab.engine
 from scipy.fft import fft,ifft
-
+import pandas as pd
+import pickle
 # Functions for generating different types of signals
 
 def chirp_exponential(f_s, N, frequency_limits):
@@ -46,53 +47,80 @@ def chirp_linear(f_s, N, P, frequency_limits):
 
 # Functions for normalization of signals
 
-def normalize_amp(signal,maximum=1,x_norm=0):
+def normalize_amp(signal,maximum=1):
     """
     Normalizes the amplitude of the signal between -1 and 1.
-    """
-    if x_norm==0:
-        x_norm=np.max(np.abs(signal))
-    normalsignal= (signal / x_norm)*maximum
 
-    return normalsignal,x_norm
+    Parameters:
+    - signal : vector of u
+    - maximum : maximum amplitude
 
-def normalize_rms(signal,maximum=1,x_norm=0):
+    Returns
+    Signal vector u
+    u= (signal/ max(|signal|))  * maximum amplitude
     """
-    Normalizes the signals power by its root mean square value.
-    """
-    if x_norm==0:
-        x_norm = np.sqrt(np.mean(np.square(abs(signal))))
-    normalsignal= (signal / x_norm)*maximum
+    factor=np.max(np.abs(signal))
+    normalsignal= (signal / factor)*maximum
 
-    return normalsignal,x_norm
+    return normalsignal
+
+def normalize_rms(signal,maximum=1):
+    """
+    Power normalizatoion of the signal by its root mean square value.
+
+    Parameters:
+    - signal : vector of u
+    - maximum : maximum amplitude
+
+    Returns:
+    signal vector u
+    u= (signal/ sqrt(mean(|signal|))  * maximum amplitude
+    """
+
+    factor = np.sqrt(np.mean(np.square(abs(signal))))
+    normalsignal= (signal / factor) * maximum
+
+    return normalsignal
 
 def normalize_stdev(signal,maximum=1,x_norm=0):
     """
-    Normalizes the signal power by its standard deviation.
+    Power normalizatoion of the signal by its standard deviation
+
+    Parameters:
+    - signal : vector of u
+    - maximum : maximum amplitude
+    Returns:
+    signal vector u
+    u= (signal/ std(signal)  * maximum amplitude
     """
-    if x_norm==0:
-        x_norm = np.std(signal)
+    factor = np.std(signal)
 
-    print("x_norm", x_norm)
-    normalsignal= (signal / x_norm)*maximum
+    normalsignal= (signal / factor )*maximum
 
-    return normalsignal,x_norm
+    return normalsignal
 
-def normalization(signal, normalize ,maximum ,x_norm):
+def normalization(signal, normalize ,maximum):
     """
     Normalizes the signal based on the specified method.
+
+    Parameters:
+    - signal : vector of u
+    - Normalize: string for normalization "Amplitude" "RMS" "STD" "None"
+    - maximum : maximum amplitude
+
+    Returns:
+    signal vector u
     """
-    print("test")
     if normalize == 'Amplitude':
-        return normalize_amp(signal,maximum,x_norm)
+        return normalize_amp(signal,maximum)
     elif normalize == 'RMS':
-        return normalize_rms(signal,maximum,x_norm)
-    elif normalize == 'STDev':
-        return normalize_stdev(signal,maximum,x_norm)
+        return normalize_rms(signal,maximum)
+    elif normalize == 'STD':
+        return normalize_stdev(signal,maximum)
     elif normalize == 'None':
-        return signal,x_norm
+        return signal
     else:
-        raise ValueError('Normalize must be "Amplitude", "RMS", "STDev", or "None"')
+        raise ValueError('Normalize must be "Amplitude", "RMS", "STD", or "None"')
 
 # Functions for phase generation in multisine signals
 
@@ -130,15 +158,13 @@ def multisine(f_s, N, frequency_limits, A_vect=None,phase_response='Schroeder', 
     """
     Generates a multisine signal.
     Parameters:
-    - N: Number of samples.
-    - f_s: Sampling frequency.
-    - f_0: Base frequency.
-    - frequency_limits: Tuple of start and end frequencies.
-    - P: Number of periods.
-    - A_vect: Amplitude vector.
-    - Tau: Time constant for linear phase generation.
-    - phase_response: Type of phase response ('Random', 'Schroeder', etc.).
-    - time_domain: Boolean indicating if output is a function of time u(t) with lambda t.
+    - f_s (int): Sampling frequency.
+    - N (int): Number of samples.
+    - frequency_limits (tuple, [A B]) : Tuple of start and end frequencies.
+    - phase_response (string,optional): Type of phase response ('Random', 'Schroeder', etc.). default: phase_response='Schroeder'
+    - A_vect (np.ndarray, optional): Amplitude vector. default: A_vect=ones(N)
+    - Tau (float, optional): Time constant for linear phase generation. default Tau=1
+    - time_domain (bool,optional): Boolean indicating if output is a function of time u(t) with lambda t. default: time_domain=True
     """
     f_0           = f_s / N
     j1, j2        = map(int, (np.floor(frequency_limits[0]), np.ceil(frequency_limits[1])))
@@ -177,8 +203,8 @@ def crest_optimization(signal,Clip_value=0.9,R=100,rms_value=0,variable=False):
 
     Parameters:
     u (np.ndarray): The input signal to be optimized.
-    Clip (float): The clipping level relative to the maximum absolute value of the signal.
-    R (int, optional): The number of iterations for the clipping algorithm. Default is 100.
+    Clip (float, optional): The clipping level relative to the maximum absolute value of the signal. default=0.9
+    R (int, optional): The number of iterations for the clipping algorithm. Default R=100.
 
     Returns:
     np.ndarray: The optimized signal after clipping.
@@ -292,6 +318,12 @@ def window_function(t, T, r):
 def DB(signal):
     """
     Calculates the decibel value of the signal.
+
+    Parameters
+    - signal(ndarray): Signal vector to tranform to decibels
+
+    Return
+
     """
     return 20 * np.log10(np.abs(signal))
 
@@ -405,45 +437,6 @@ def matlab_input_file(filename,input,output,reference,samplenumbers,sampletime,f
     # Save the dictionary to a .mat file
     return savemat(m_filename,  data)
 
-def matlab_input_data(input,output,reference,samplenumbers,sampletime,frequencyrange):
-
-    input_array = np.asarray(input)
-    output_array = np.asarray(output)
-    reference_array = np.asarray(reference)
-    frequencyrange_array = np.asarray(frequencyrange)
-
-    # Organizing the data into the specified structure
-    data = {
-        'u': input_array,
-        'y': output_array,
-        'r': reference_array,
-        'N': np.array([samplenumbers]),
-        'Ts': np.array([sampletime]),
-        'ExcitedHarm': frequencyrange_array
-    }
-
-    # Save the dictionary to a .mat file structured as a 1x1 struct
-    #savemat(m_filename, {'data': data})
-    # Save the dictionary to a .mat file
-    return data
-
-
-def matlab_method(filename,order=2,dof=2,transient_on=1):
-        # Organizing the data into the specified structure
-    # Path for the MATLAB .m file with .m extension
-    m_filename = filename if filename.endswith('.mat') else f"{filename}.mat"
-
-    # Organizing the data into the specified structure
-    method = {
-        'order': np.array([order]),             #order of the local polynomial approximation (default 2)
-        'dof': np.array([dof]),                 #degrees of freedom of the (co-)variance estimates = equivalent number of independent experiments - 1 (default ny)
-        'transient': np.array([transient_on]),  #determines the estimation of the transient term (optional; default 1) 1: transient term is estimated 0: no transient term is estimated
-    }
-
-    # Save the dictionary to a .mat file structured as a 1x1 struct
-    #savemat(m_filename, {'data': data})
-    # Save the dictionary to a .mat file
-    return savemat(m_filename,  method)
 
 def matpy_LPM(u,y,reference_signal,N,fs,excitedharmonics,order=2,dof=1,transient_on=1):
 
@@ -479,3 +472,110 @@ def matpy_LPM(u,y,reference_signal,N,fs,excitedharmonics,order=2,dof=1,transient
 
     return G_LPM
 
+
+def export_data_for_visualization_pickle(base_filepath, G, G_m, f_range, G_0, band_range, N, P,M, u_steady, t, noise, plot_title):
+    # Preparing the data with adjustments
+# Check if var_G is scalar (has no 'shape' attribute or shape is empty)
+    var_G = np.var(G_m[1:int(band_range[1])], axis=0)
+    if np.isscalar(var_G) or np.size(var_G) == 1:
+        var_G = np.ones(len(f_range))  # Ensure var_G is an array
+    else:
+        var_G = var_G[1:]  # Slice var_G if it's not a scalar
+    bias_G = G_0 - G
+
+    nu = f"{noise['inputdb']}db" if noise['inputset'] else 'False'
+    ny = f"{noise['outputdb']}db" if noise['outputset'] else 'False'
+
+    # Organizing the data into a dictionary
+    data_pickle = {
+        'f_range': f_range,
+        'G_0': G_0,
+        'G': G,
+        'G_m': G_m,
+        'var': var_G,
+        'bias': bias_G,
+        'u': u_steady,
+        'N': N,
+        'P': P,
+        'M': M,
+        't': t,
+        'nu': nu,
+        'ny': ny,
+        'title': plot_title
+    }
+
+    data_csv=pd.DataFrame({
+        'f_range': f_range,
+        'G_0': G_0,
+        'G': G,
+        'var': var_G,
+        'bias': bias_G,})
+
+
+    # Filepath adjustments
+    csv_filepath = base_filepath + '.csv'
+    pickle_filepath = base_filepath + '.pickle'
+
+    # Exporting to CSV
+    data_csv.to_csv(csv_filepath, index=False)
+
+    # Serializing the data structure with pickle
+    with open(pickle_filepath, 'wb') as file:
+        pickle.dump(data_pickle, file, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def load_data_for_visualization_pickle(filepath):
+    with open(filepath, 'rb') as file:
+        data = pickle.load(file)
+    return data
+
+
+def create_plot_title(f_s, N, P, M, plot_signal,
+                      multisine_param, chirp_param, interpolation_param, normalization_param,
+                      noise_param, window_param, optimizecrest_param, multisine_log_param, LPM_param):
+    """
+    Generates a descriptive title for plots based on the parameters used in data generation, excluding specific parameters.
+
+    Args:
+    - f_s (int): Sample frequency.
+    - N (int): Number of points.
+    - P (int): Number of repeated periods.
+    - M (int): Number of measurements.
+    - plot_signal (str): Type of signal ('Chirp' or 'Multisine').
+    - multisine_param (dict), chirp_param (dict), interpolation_param (dict),
+      normalization_param (dict), noise_param (dict), window_param (dict),
+      optimizecrest_param (dict), multisine_log_param (dict), LPM_param (dict): Parameter dictionaries.
+
+    Returns:
+    - str: A formatted title string.
+    """
+    title_parts = [f"{plot_signal} "]
+
+    if multisine_param.get('set', False):
+        title_parts.append(f"{multisine_param['phase']} phase signal ")
+
+    if chirp_param.get('set', False):
+        title_parts.append("Chirp signal ")
+
+    if window_param.get('set', False):
+        title_parts.append(f"with windowing (R={window_param['r']}) ")
+
+    if optimizecrest_param.get('set', False):
+        title_parts.append("Crest factor optimization ")
+
+    if LPM_param.get('set', False):
+        title_parts.append("and LPM optimization ")
+
+    title_parts.append(f".\nThe simulation set with {N} sample points and sample frequency fs={f_s}Hz.\n{P} Periods have been simulated over {M} Measurements.\n")
+
+    if noise_param.get('inputset', False):
+        title_parts.append(f"Input Noise: SNR {noise_param['inputdb']} dB ")
+    else:
+        title_parts.append("No input noise, ")
+
+    if noise_param.get('outputset', False):
+        title_parts.append(f"Output Noise: SNR {noise_param['outputdb']} dB")
+    else:
+        title_parts.append("No output noise.")
+
+    return "".join(title_parts)

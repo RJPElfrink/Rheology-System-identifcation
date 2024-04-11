@@ -2,45 +2,56 @@ import numpy as np
 import Rheosys as rhs
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
-
-#LPM_multisine=loadmat('LPM_multisine.mat')
-
-N=2000
-f_s=20
-f=np.linspace(0,f_s,N,endpoint=False)
-#f_range=len(freq)
-
-# Save specified signal
-G_0  =np.load('G_0.npy')
-#G_1_m=np.load('G_1_m.npy')
-#G_2_m=np.load('G_2_m.npy')
-#G_3_m=np.load('G_3_m.npy')
-#G_4_m=np.load('G_4_m.npy')
-G_5_m=np.load('G_5_m.npy')
+import pandas as pd
 
 
-#G_1_multi_trans=np.mean(G_1_m,axis=0)
-#G_2_multi_window=np.mean(G_2_m,axis=0)
-#G_3_multi_LPM=np.mean(G_3_m,axis=0)
-#G_4_chirp_window=np.mean(G_4_m,axis=0)
-G_5_chirp_LPM=np.mean(G_5_m,axis=0)
+# Example usage:
 
-#var_G_1_multi_trans=np.var(G_1_m,axis=0)
-#var_G_2_multi_window=np.var(G_2_m,axis=0)
-#var_G_3_multi_LPM=np.var(G_3_m,axis=0)
-#var_G_4_chirp_window=np.var(G_4_m,axis=0)
-var_G_5_chirp_LPM=np.var(G_5_m,axis=0)
-
-#dif_G_1_multi_trans=G_1_multi_trans-G_0
-#dif_G_2_multi_window=G_2_multi_window-G_0
-#dif_G_3_multi_LPM=G_3_multi_LPM-G_0
-#dif_G_4_chirp_window=G_4_chirp_window-G_0
-dif_G_5_chirp_LPM=G_5_chirp_LPM-G_0
+multisine_schroeder_lpm = rhs.load_data_for_visualization_pickle('visualization_data.pickle')
+multisine_schroeder_transient=1
+multisine_schroeder_window=1
+multisine_random_lpm = rhs.load_data_for_visualization_pickle('multi_random_lpm.pickle')
+multisine_random_transient=1
+multisine_random_window=1
+chirp_window=1
 
 
+M   = multisine_schroeder_lpm['M']
+P   = multisine_schroeder_lpm['P']
+N   = multisine_schroeder_lpm['N']
+nu  = multisine_schroeder_lpm['nu']
+ny  = multisine_schroeder_lpm['ny']
+f_range=multisine_schroeder_lpm['f_range']
 
 
-break
+# Create figure and a single subplot (ax)
+fig, ax = plt.subplots(figsize=(12, 8))  # Wider figure to clearly differentiate multiple lines
+
+# Plot lines for 'multisine_schroeder_lpm'
+ax.plot(f_range, rhs.DB(multisine_schroeder_lpm['G_0']), '-', label='$G_{0}$ Schroeder', color='blue')
+ax.plot(f_range, rhs.DB(multisine_schroeder_lpm['G']), 'o-', label='$\hat{G}_{1}$ Schroeder', color='red')
+ax.plot(f_range, rhs.DB(multisine_random_lpm['bias']), 'x-', label='Bias Schroeder', color='green')
+ax.plot(f_range, rhs.DB(multisine_random_lpm['var']), 'v-', label='Variance Schroeder', color='purple')
+
+# Plot lines for 'multisine_random_lpm' (assuming it has similar structure)
+ax.plot(f_range, rhs.DB(multisine_random_lpm['G_0']), '--', label='$G_{0}$ Random', color='cyan')
+ax.plot(f_range, rhs.DB(multisine_random_lpm['G']), 's-', label='$\hat{G}_{1}$ Random', color='magenta')
+ax.plot(f_range, rhs.DB(multisine_random_lpm['bias']), '+-', label='Bias Random', color='lime')
+ax.plot(f_range, rhs.DB(multisine_random_lpm['var']), '^-', label='Variance Random', color='orange')
+
+# Set plot parameters
+ax.set_title(f'Frequency Response Function (FRF) Analysis\n{M} Measurements, P={P} Periods, N={N}', fontsize=14)
+ax.set_xlabel('Frequency (Hz)', fontsize=12)
+ax.set_ylabel('Magnitude [dB]', fontsize=12)
+ax.set_xscale('log')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.legend(loc='best', fontsize=10)  # Changed to 'best' to automatically adjust legend placement
+ax.set_xlim([f_range[0], f_range[-1]])
+ax.set_ylim([-140, 20])  # Adjusted upper limit and lowered bottom limit for better visibility
+
+# Fine-tuning
+plt.tight_layout()  # Adjust layout to prevent clipping of tick-labels etc
+plt.show()
 """
 PLOTTING FOR VISUALIZATION OF THE FRF RESULTS
 
@@ -48,15 +59,12 @@ PLOTTING FOR VISUALIZATION OF THE FRF RESULTS
 
 
 # Phase plot of the FRF transferfunction with multisine
-plt.plot(f_range,rhs.DB(G_0[:int(band_range[1])]),'-',label='$\hat{G}_{0}$')
-plt.plot(f_range,rhs.DB(G_1_multi_trans),'o',label='$\hat{G}_{1} Multisine transient$')
-#plt.plot(f_range,rhs.DB(G_2_multi_window),'o',label='$\hat{G}_{2}Multisine windowing$')
-#plt.plot(f_range,rhs.DB(G_3_multi_LPM),'o',label='$\hat{G}_{3}Multisine LPM$')
-#plt.plot(f_range,rhs.DB(G_4_chirp_window),'o',label='$\hat{G}_{4}Chirp windowing$')
-#plt.plot(f_range,rhs.DB(G_5_chirp_LPM),'o',label='$\hat{G}_{5}Chirp LPM$')
-plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_input_u[1]} dB, SNR$_y$ {noise_output_y[1]} dB, ')
-plt.legend()
-plt.xlim([f_s/N,f_s/2])
+plt.plot(f_range,rhs.DB(multisine_schroeder_lpm['G_0']),'-',label='$\hat{G}_{0}$')
+plt.plot(f_range,rhs.DB(multisine_schroeder_lpm['G']),'o',label='$\hat{G}_{1} Multisine Schroeder$')
+plt.plot(f_range,rhs.DB(multisine_schroeder_lpm['bias']),'o',label='$\hat{G}_{1} Bias Multisine windowing$')
+plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {nu} dB, SNR$_y$ {ny} , ')
+plt.legend(loc='best')
+#plt.xlim([f_s/N,f_s/2])
 #plt.ylim(-100,25)
 plt.xscale('log')
 plt.ylabel('Magnitude [dB]')
@@ -67,45 +75,7 @@ plt.show()
 PLOTTING THE VARIANCE OF EACHT SIGNAL
 
 """
-
-
-# Phase plot of the FRF transferfunction with multisine
-plt.plot(f_range,rhs.DB(var_G_1_multi_trans),'o',label='$\hat{G}_{1} Multisine transient$')
-plt.plot(f_range,rhs.DB(var_G_2_multi_window),'o',label='$\hat{G}_{2}Multisine windowing$')
-plt.plot(f_range,rhs.DB(var_G_3_multi_LPM),'o',label='$\hat{G}_{3}Multisine LPM$')
-plt.plot(f_range,rhs.DB(var_G_4_chirp_window),'o',label='$\hat{G}_{4}Chirp windowing$')
-plt.plot(f_range,rhs.DB(var_G_5_chirp_LPM),'o',label='$\hat{G}_{5}Chirp LPM$')
-
-plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_input_u[1]} dB, SNR$_y$ {noise_output_y[1]} dB, ')
-plt.legend()
-plt.xlim([f_s/N,f_s/2])
-#plt.ylim(-100,25)
-plt.xscale('log')
-plt.ylabel('Magnitude [dB]')
-plt.xlabel('Frequency (Hz)')
-plt.show()
-
-"""
-PLOTTING THE BIAS OF EACH SIGNAL
-
-"""
-
-# Phase plot of the FRF transferfunction with multisine
-plt.plot(f_range,rhs.DB(dif_G_1_multi_trans),'o',label='$\hat{G}_{1} Multisine transient$')
-plt.plot(f_range,rhs.DB(dif_G_2_multi_window),'o',label='$\hat{G}_{2}Multisine windowing$')
-plt.plot(f_range,rhs.DB(dif_G_3_multi_LPM),'o',label='$\hat{G}_{3}Multisine LPM$')
-plt.plot(f_range,rhs.DB(dif_G_4_chirp_window),'o',label='$\hat{G}_{4}Chirp windowing$')
-plt.plot(f_range,rhs.DB(dif_G_5_chirp_LPM),'o',label='$\hat{G}_{5}Chirp LPM$')
-
-plt.title(f'Bias of the FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_input_u[1]} dB, SNR$_y$ {noise_output_y[1]} dB, ')
-plt.legend()
-plt.xlim([f_s/N,f_s/2])
-#plt.ylim(-100,25)
-plt.xscale('log')
-plt.ylabel('Magnitude [dB]')
-plt.xlabel('Frequency (Hz)')
-plt.show()
-
+break
 
 """
 PLOTTING THE BIAS AND VARIANCE TRADE OF IN ONE PLOT
