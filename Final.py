@@ -15,10 +15,10 @@ g_constant=2.5                             # Value for spring constant g
 
 f_s = 20                                   # Sample frequency
 N = 2000                                   # Number of points
-P = 10                                      # Number of repeated periods
-P_tf = 0                                   # Number of removed transient periods
+P = 1                                      # Number of repeated periods
+P_tf = 1                                   # Number of removed transient periods
 
-M = 10
+M = 1
 
 plot_signal='Multisine'                    # Select 'Chirp' or 'Multsine' to change plots
 
@@ -45,15 +45,15 @@ noise_param     = { 'inputset'  : False,         # Set the value for noise on in
 window_param        = { 'set'   : False,        # Set to True to activate windwo
                         'r'     : 0.15}         # Set value of R between 0-1, 0 is rectangular, 1 is Hann window
 
-optimizecrest_param  = {'set'   : False,       # Set to True to optimize the signal the crest clipping algorithm
-                       'clip'   : 0.9,          # Set clipping value which clips the crest value
-                       'R'      : 10,          # Amount of realization to test the optimized signal u
+optimizecrest_param  = {'set'   : True,       # Set to True to optimize the signal the crest clipping algorithm
+                       'clip'   : 0.8,          # Set clipping value which clips the crest value
+                       'R'      : 1000,          # Amount of realization to test the optimized signal u
                       'variable': False,}       # Varible clipping value, True to linearly change 'clip' value from set value to 1
 
 multisine_log_param = {'set'    : False,        # Optional Logarithmic amplitude vector A in multisin
                        'decade' : 40}           # Amount of frequencies per decade, j1 and j2 are defined in 'multisine_params'
 
-LPM_param           = {'set'    : True,        # Set to True To calculate the LocalPolynomialMeasurement set it to True
+LPM_param           = {'set'    : False,        # Set to True To calculate the LocalPolynomialMeasurement set it to True
                    'order'      : 2,            # method.order[2] order of approximation
                    'dof'        : 1,            # method.dof degrees of freedom, independent experiments default = 1
                    'transient'  : 1}            # method.transient, include transien estimation = 1, exclude transient estimation = 0
@@ -112,7 +112,7 @@ elif plot_signal=='Chirp':
 
 # Crest optimization algorithm is activated if optimizecrest_param is set to true, use of clipping
 if optimizecrest_param['set']:
-    u_select=rhs.crest_optimization(u_select,optimizecrest_param['clip'],optimizecrest_param['R'],1,optimizecrest_param['variable'])
+    u_select,crst=rhs.crest_optimization(u_select,optimizecrest_param['clip'],optimizecrest_param['R'],1,optimizecrest_param['variable'])
 
 
 excitedharm_range = np.linspace(band_range[0],band_range[1],int(band_range[1]-band_range[0])+1,endpoint=True)
@@ -252,8 +252,8 @@ G_LPM=np.array(np.squeeze(np.mean(G_LPM_m,axis=0)))
 """
 Calculations have been made, to export the right
 """
-f_range=f_range[1:]
-G_0=G_0[1:int(band_range[1])]
+#f_range=f_range[1:]
+#G_0=G_0[1:int(band_range[1])]
 
 if LPM_param['set']:
     G_export=G_LPM[:int(band_range[1])-1]
@@ -269,9 +269,9 @@ else:
 # Example usage:
 data_path = 'multi_random_lpm'
 plot_title=rhs.create_plot_title(f_s, N, P, M, plot_signal, multisine_param, chirp_param, interpolation_param, normalization_param, noise_param, window_param, optimizecrest_param, multisine_log_param, LPM_param)
-rhs.export_data_for_visualization_pickle(data_path, G_export, G_export_m,  f_range, G_0, band_range, N, P, M, u_p_steady,t, noise_param, plot_title)
+#rhs.export_data_for_visualization_pickle(data_path, G_export, G_export_m,  f_range, G_0, band_range, N, P, M, u_p_steady,t, noise_param, plot_title)
 
-break
+
 # FRF calculation by Maximum Likelihood
 var_G_ML=np.var(G_ML_m,axis=0)
 var_G_etfe=np.var(G_etfe_p,axis=0)
@@ -292,7 +292,7 @@ G_1_multi_trans=G_ML
 #G_1_multi_trans=G_ML[1:int(band_range[1])]
 #G_2_multi_window=G_ML[:int(band_range[1])]
 
-G_3_multi_LPM=G_LPM
+#G_3_multi_LPM=G_LPM
 #G_3_multi_LPM=G_LPM[:int(band_range[1])-1]
 #G_4_chirp_window=G_ML
 #G_5_chirp_LPM=G_LPM[:int(band_range[1])]
@@ -302,7 +302,7 @@ G_3_multi_LPM=G_LPM
 
 var_G_1_multi_trans=np.var(G_ML_m[:int(band_range[1])],axis=0)
 #var_G_2_multi_window=np.var(G_ML_m[:int(band_range[1])],axis=0)
-var_G_3_multi_LPM=np.var(G_LPM_m[:int(band_range[1])],axis=0)
+#var_G_3_multi_LPM=np.var(G_LPM_m[:int(band_range[1])],axis=0)
 #var_G_4_chirp_window=np.var(G_ML_m,axis=0)
 #var_G_5_chirp_LPM=np.var(G_LPM_m[:int(band_range[1])],axis=0)
 #var_G_6_rand_LPM=np.var(G_LPM_m,axis=0)
@@ -310,7 +310,7 @@ var_G_3_multi_LPM=np.var(G_LPM_m[:int(band_range[1])],axis=0)
 
 dif_G_1_multi_trans=G_0-G_1_multi_trans
 #dif_G_2_multi_window=G_ML[:int(band_range[1])]-G_0[:int(band_range[1])]
-dif_G_3_multi_LPM=G_0[1:]-G_3_multi_LPM[:-1]
+#dif_G_3_multi_LPM=G_0[1:]-G_3_multi_LPM[:-1]
 #dif_G_4_chirp_window=G_ML-G_0[:int(band_range[1])]
 #dif_G_5_chirp_LPM=G_LPM[:int(band_range[1])]-G_0[:int(band_range[1])]
 #dif_G_6_rand_LPM=G_LPM-G_0[:int(band_range[1])]
@@ -322,11 +322,11 @@ plt.plot(f_range,rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
 plt.plot(f_range,rhs.DB(G_1_multi_trans),'o',label='$\hat{G}_{1} Multisine schroeder transient$')
 plt.plot(f_range,rhs.DB(var_G_1_multi_trans),'-',label='$\hat{G}_{1} Var Multisine schroeder transient$')
 plt.plot(f_range,rhs.DB(dif_G_1_multi_trans),'o',label='$\hat{G}_{1} Bias Multisine schroeder transient$')
-plt.plot(f_range,rhs.DB(G_3_multi_LPM),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
-plt.plot(f_range[1:],rhs.DB(dif_G_3_multi_LPM),'o',label='$\hat{G}_{3}Bias Multisine schroeder LPM$')
-plt.plot(f_range,np.log10(abs(var_G_3_multi_LPM)),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
-plt.plot(f_range[1:],rhs.DB(dif_G_3_multi_LPM),'o',label='$\hat{G}_{3}Bias Multisine schroeder LPM$')
-plt.plot(f_range,rhs.DB(G_ML[:int(band_range[1])]-G_etfe[:int(band_range[1])]),'o',label='$\hat{G}_{1} Multisine schroeder transient$')
+#plt.plot(f_range,rhs.DB(G_3_multi_LPM),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
+#plt.plot(f_range[1:],rhs.DB(dif_G_3_multi_LPM),'o',label='$\hat{G}_{3}Bias Multisine schroeder LPM$')
+#plt.plot(f_range,np.log10(abs(var_G_3_multi_LPM)),'o',label='$\hat{G}_{3}Multisine schroeder LPM$')
+#plt.plot(f_range[1:],rhs.DB(dif_G_3_multi_LPM),'o',label='$\hat{G}_{3}Bias Multisine schroeder LPM$')
+#plt.plot(f_range,rhs.DB(G_ML[:int(band_range[1])]-G_etfe[:int(band_range[1])]),'o',label='$\hat{G}_{1} Multisine schroeder transient$')
 plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
 plt.legend(loc='best')
 plt.xlim([f_s/N,f_s/2])

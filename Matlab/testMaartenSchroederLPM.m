@@ -32,18 +32,18 @@ phasemulti = -k.*(k-1).*pi/nLines;
 %% generate input
 
 
-nUp = 20; % generate data oversampled such that simulation is accurate - otherwhise we have significant zoh effects with lsim simulation
+nUp = 10; % generate data oversampled such that simulation is accurate - otherwhise we have significant zoh effects with lsim simulation
 tUp = 0:Ts/nUp:(nUp*N-1)*Ts/nUp;
 R = zeros(N*nUp,1);
 
 %select phaserand or phasemulti 
-R(lines) = exp(1i*phasemulti);
+R(lines) = exp(1i*phaserand);
 rUp = 2*real(ifft(R)); rUp = rstd*rUp/std(rUp); rUp=rUp.';
 rTest=rUp;
 
 % improve crest factor 
 figure; plot(tUp,rUp);
-for iter=1:1
+for iter=1:1000
 rUp = min(rUp,rMax); rUp=max(rUp,-rMax);
 Rtemp = fft(rUp);
 R = zeros(N*nUp,1);

@@ -197,7 +197,7 @@ def multisine(f_s, N, frequency_limits, A_vect=None,phase_response='Schroeder', 
 
     return u, phase
 
-def crest_optimization(signal,Clip_value=0.9,R=100,rms_value=0,variable=False):
+def crest_optimization_first(signal,Clip_value=0.9,R=100,rms_value=0,variable=False):
     """
     Optimizes the signal u by applying a clipping algorithm to minimize the crest factor.
 
@@ -231,8 +231,47 @@ def crest_optimization(signal,Clip_value=0.9,R=100,rms_value=0,variable=False):
         u[np.abs(u) > uClip] = u[np.abs(u) > uClip] / np.abs(u[np.abs(u) > uClip]) * uClip
         U = fft(u)
         U = UFixed * np.exp(1j * np.angle(U))  # restore original amplitude spectrum
+    u_best=np.real(ifft(U))
+    return u_best.copy(),Cr
 
-    return u.copy()
+def crest_optimization(signal,clip_value=0.9,iterations=100,rms_value=0,variable=False):
+    """
+    Optimizes the signal u by applying a clipping algorithm to minimize the crest factor.
+
+    Parameters:
+    u (np.ndarray): The input signal to be optimized.
+    Clip (float, optional): The clipping level relative to the maximum absolute value of the signal. default=0.9
+    R (int, optional): The number of iterations for the clipping algorithm. Default R=100.
+
+    Returns:
+    np.ndarray: The optimized signal after clipping.
+    list: The history of crest factors for each iteration.
+    """
+
+    nLines = len(signal)
+    lines = np.arange(nLines)
+
+    R = np.zeros(nLines, dtype=complex)
+    R[lines]=fft(signal)
+    rUp=signal
+
+    crest_factors = []  # Crest factor history
+    if variable==True:
+        clip_max=np.linspace(clip_value,1,iterations)
+    else:
+        clip_max=np.ones(iterations)*clip_value
+
+    for k in range(iterations):
+        rMax = clip_max * (np.max(np.abs(rUp)) / 1.0)  # Dynamic clipping level based on current peak
+        rUp = np.clip(rUp, -rMax, rMax)
+        Rtemp = fft(rUp)
+        R = np.zeros(nLines, dtype=complex)
+        R[lines] = Rtemp[lines] / np.abs(Rtemp[lines])  # Normalize magnitude to maintain phase
+        rUp = 2 * np.real(ifft(R))
+        crest_factors.append(np.max(np.abs(rUp)) / rms(rUp))
+
+    return rUp, crest_factors
+
 
 def log_amplitude(N, k1, k2, kdens):
     """
@@ -331,7 +370,8 @@ def rms(signal):
     """
     Calculates the root mean square of the signal.
     """
-    return np.sqrt(np.mean(np.square(abs(signal))))
+    #return np.sqrt(np.mean(np.square(abs(signal))))
+    return np.sqrt(np.mean(signal**2))
 
 def crest_fac(signal):
     """
