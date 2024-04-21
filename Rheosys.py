@@ -185,16 +185,16 @@ def multisine(f_s, N, frequency_limits, A_vect=None,phase_response='Schroeder', 
     }.get(phase_response, ValueError('Invalid phase response'))
 
     # Calculate multisine signal
-    #u = np.zeros(N * P) if time_domain else lambda k: sum(A[j] * np.cos(j_range[j] * k * 2 * np.pi * f_0 + phase[j]) for j in range(J))
-    u = np.zeros(N) if time_domain else lambda k: sum(A[j] * np.cos(j_range[j] * k * 2 * np.pi * f_0 + phase[j]) for j in range(J))
+
+    #u = np.zeros(N) if time_domain else lambda k: sum(A[j] * np.cos(j_range[j] * k * 2 * np.pi * f_0 + phase[j]) for j in range(J))
+    u = np.zeros(N)
     if time_domain:
         T = (N) / f_s
-        #T = (P * N) / f_s
         t = np.linspace(0, T, N , endpoint=False)
-        #t = np.linspace(0, T, N * P, endpoint=False)
         for j in range(J):
             u += A[j] * np.cos(j_range[j] * t * 2 * np.pi * f_0 + phase[j])
-
+    else:
+        lambda k: sum(A[j] * np.cos(j_range[j] * k * 2 * np.pi * f_0 + phase[j]) for j in range(J))
     return u, phase
 
 def crest_optimization_first(signal,Clip_value=0.9,R=100,rms_value=0,variable=False):
@@ -253,6 +253,7 @@ def crest_optimization(signal,clip_value=0.9,iterations=100,rms_value=0,variable
 
     R = np.zeros(nLines, dtype=complex)
     R[lines]=fft(signal)
+    U_fixed=abs(R)
     rUp=signal
 
     crest_factors = []  # Crest factor history
@@ -262,12 +263,17 @@ def crest_optimization(signal,clip_value=0.9,iterations=100,rms_value=0,variable
         clip_max=np.ones(iterations)*clip_value
 
     for k in range(iterations):
-        rMax = clip_max * (np.max(np.abs(rUp)) / 1.0)  # Dynamic clipping level based on current peak
+        rMax = clip_max[k] * (np.max(np.abs(rUp)) / 1.0)  # Dynamic clipping level based on current peak
         rUp = np.clip(rUp, -rMax, rMax)
         Rtemp = fft(rUp)
         R = np.zeros(nLines, dtype=complex)
-        R[lines] = Rtemp[lines] / np.abs(Rtemp[lines])  # Normalize magnitude to maintain phase
+
+        R[lines]=U_fixed[lines]*np.exp(1j * np.angle(Rtemp[lines]))
         rUp = 2 * np.real(ifft(R))
+
+        #R[lines] = Rtemp[lines] / np.abs(Rtemp[lines])  # Normalize magnitude to maintain phase
+        #rUp = 2 * np.real(ifft(R))
+
         crest_factors.append(np.max(np.abs(rUp)) / rms(rUp))
 
     return rUp, crest_factors
@@ -289,7 +295,7 @@ def log_amplitude(N, k1, k2, kdens):
     """
     # Create logarithmic grid in [k1 k2]
     k1Log = np.log10(k1)
-    k2Log = np.log10(k2)
+    k2Log = np.log10(k2-1)
     fLog = np.round(10**np.arange(k1Log, k2Log + 1/kdens, 1/kdens))
 
     # Filter out duplicates and ensure the frequencies fall within the range [1, N]
@@ -300,7 +306,9 @@ def log_amplitude(N, k1, k2, kdens):
     A = np.zeros(N, dtype=int)
 
     # Set the elements corresponding to the logarithmically spaced frequencies to 1
-    A[fAll-1] = 1  # -1 for zero-based indexing in Python
+    fAll    = fAll -1   # -1 for zero-based indexing in Python
+    A[fAll] = 1
+    print("testen")
 
     return A,fAll
 
@@ -513,15 +521,16 @@ def matpy_LPM(u,y,reference_signal,N,fs,excitedharmonics,order=2,dof=1,transient
     return G_LPM
 
 
-def export_data_for_visualization_pickle(base_filepath, G, G_m, f_range, G_0, band_range, N, P,M, u_steady, t, noise, plot_title):
+def export_data_for_visualization_pickle(base_filepath, G, G_m, f_range, G_0, band_range, N, P,M, u_steady, t, noise, plot_title,fact_crest,fact_effic,fact_loss,fact_quali):
     # Preparing the data with adjustments
 # Check if var_G is scalar (has no 'shape' attribute or shape is empty)
-    var_G = np.var(G_m[1:int(band_range[1])], axis=0)
+    var_G = np.var(G_m, axis=0)
     if np.isscalar(var_G) or np.size(var_G) == 1:
         var_G = np.ones(len(f_range))  # Ensure var_G is an array
     else:
-        var_G = var_G[1:]  # Slice var_G if it's not a scalar
+        var_G = var_G[1:int(band_range[1])]  # Slice var_G if it's not a scalar
     bias_G = G_0 - G
+
 
     nu = f"{noise['inputdb']}db" if noise['inputset'] else 'False'
     ny = f"{noise['outputdb']}db" if noise['outputset'] else 'False'
@@ -541,7 +550,11 @@ def export_data_for_visualization_pickle(base_filepath, G, G_m, f_range, G_0, ba
         't': t,
         'nu': nu,
         'ny': ny,
-        'title': plot_title
+        'title': plot_title,
+        'fact_crest':fact_crest,
+        'fact_efficiency':fact_effic,
+        'fact_loss':fact_loss,
+        'fact_quality':fact_quali
     }
 
     data_csv=pd.DataFrame({

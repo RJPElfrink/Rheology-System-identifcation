@@ -12,18 +12,18 @@ from scipy.io import loadmat
 Lambda_constant=1.5                        # Value for lambda n/g
 g_constant=2.5                             # Value for spring constant g
 
-f_s = 2                                   # Sample frequency
-N = 200                                   # Number of points
+f_s = 20                                   # Sample frequency
+N = 200                                  # Number of points
 P = 1                                     # Number of repeated periods
-P_tf = 0                                   # Number of removed transient periods
+P_tf = 0.1                                   # Number of removed transient periods
 interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
-normalize_value   =[True,'STDev']           # Select normalization methode (None, STDev, Amplitude, RMS)
+normalize_value   =[True,'STD']           # Select normalization methode (None, STDev, Amplitude, RMS)
 
 M =1
 
 j_1=1                                      # Starting frequency multisine
 j_2=N/2                                    # Stopping freqency multisine
-phase_selection = 'Random'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
+phase_selection = 'Schroeder'              # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
 
 k_1 = 1                                    # Starting frequency chirp
 k_2 = N/2                                  # Stopping frequency chirp
@@ -74,7 +74,7 @@ if P<=P_tf:
 u_mutlisine, phase_multisine=rhs.multisine(f_s,N,[j_1,j_2],phase_response=phase_selection,time_domain=True)
 
 # Calculation of the input signal for the multisine signal over the entire transient time period
-u_chirp=rhs.chirp_exponential(f_s,N,P,[k_1,k_2])
+u_chirp=rhs.chirp_exponential(f_s,N,[k_1,k_2])
 
 #Select u_chirp or u_multi as tranient signal for figure generation
 if plot_signal=='Multisine':
@@ -106,7 +106,7 @@ if window_set[0]==True:
 
 # Normalize the input signal to None, STDev, Amplitude or RMS
 if normalize_value[0]==True:
-    u_0_transient,x_norm=rhs.normalization(u_0_transient,normalize=str(normalize_value[1]),maximum=1,x_norm=0)
+    u_0_transient=rhs.normalization(u_0_transient,normalize=str(normalize_value[1]),maximum=1)
 
 # Sampled transient signal as a function of t
 if interpolation_kind[0]==True:
@@ -176,7 +176,7 @@ for m in range(M):
 
     # Normalize the input signal to None, STDev, Amplitude or RMS
     if normalize_value[0]==True:
-        u_n_transient,x_norm=rhs.normalization(u_n_transient,normalize=str(normalize_value[1]),maximum=1,x_norm=0)
+        u_n_transient=rhs.normalization(u_n_transient,normalize=str(normalize_value[1]),maximum=1)
 
     # Compute the response output y by, input noise is only on measurement not on generator, so the model is inserted with u_0
     t_n_out,y_n_out, _ = signal.lsim(s1, U=u_0_transient, T=t_transient)
@@ -318,7 +318,7 @@ if P_tf!=0:
     plt.plot(t_transient[:N_tf],y_0_transient[:N_tf]-y_0[-N_tf:],label='y-y$_p$')
     plt.plot(t_transient[:N_tf],y_0[-N_tf:]-y_0_transient[:N_tf],label='y-y$_p$')
     plt.plot(t_transient[:N_tf],transient_analytic[:N_tf],label='analytic')
-    plt.yscale('log')
+    #plt.yscale('log')
     plt.ylabel('y-y$_p$')
     plt.legend()
     plt.xlabel('Time[s]')
