@@ -26,7 +26,7 @@ def chirp_exponential(f_s, N, frequency_limits):
     return signal
 
 
-def chirp_linear(f_s, N, P, frequency_limits):
+def chirp_linear(f_s, N, frequency_limits):
     """
     Generates an exponential chirp signal.
     Parameters:
@@ -42,7 +42,7 @@ def chirp_linear(f_s, N, P, frequency_limits):
     k_1, k_2    = frequency_limits
     L           = np.pi*(k_2-k_1)*f_0**2
     signal      = np.sin((L*time+2*np.pi*k_1*f_0)*time)
-    signal      = np.tile(signal, P)
+
     return signal
 
 # Functions for normalization of signals
@@ -169,7 +169,7 @@ def multisine(f_s, N, frequency_limits, A_vect=None,phase_response='Schroeder', 
     f_0           = f_s / N
     j1, j2        = map(int, (np.floor(frequency_limits[0]), np.ceil(frequency_limits[1])))
     J             = j2 - j1
-    j_range       = np.linspace(j1, j2 - 1, J, endpoint=True).astype(int)
+    j_range       = np.linspace(j1, j2 - 1, J, endpoint=True,dtype=np.float64)#.astype(int)
 
     # Set up amplitude vector
     A             = np.ones(N) if A_vect is None else A_vect[:J]
@@ -321,6 +321,7 @@ def add_noise_with_snr(signal, snr_db):
 
     # Calculate desired noise power for the given SNR
     P_noise_desired = P_signal / snr_linear
+
 
     # Generate white Gaussian noise
     noise = np.random.normal(0, 1, signal.shape)

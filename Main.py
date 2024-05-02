@@ -12,10 +12,10 @@ from scipy.io import loadmat
 Lambda_constant=1.5                        # Value for lambda n/g
 g_constant=2.5                             # Value for spring constant g
 
-f_s = 20                                   # Sample frequency
-N = 200                                  # Number of points
+f_s = 200                                   # Sample frequency
+N = 20000                                  # Number of points
 P = 1                                     # Number of repeated periods
-P_tf = 0.1                                   # Number of removed transient periods
+P_tf = 0.025                                   # Number of removed transient periods
 interpolation_kind=[True,0]                # Interpolation by Zero Order Hold
 normalize_value   =[True,'STD']           # Select normalization methode (None, STDev, Amplitude, RMS)
 

@@ -4,17 +4,18 @@ from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 from scipy.fft import fft
 from scipy import signal
-import Rheosys as rhs
 import pandas as pd
-
+import sys
+sys.path.append(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation')
+import Rheosys as rhs
 
 
 """Set transfer function parameters"""
 Lambda_constant=1.5                        # Value for lambda n/g
 g_constant=2.5                             # Value for spring constant g
 
-f_s = 20                                   # Sample frequency
-N = 2000                                  # Number of points
+f_s = 10                                   # Sample frequency
+N = 10000                                  # Number of points
 P = 1                                      # Number of repeated periods
 P_tf = 0                                # Number of removed transient periods
 
@@ -35,13 +36,12 @@ interpolation_param = { 'set'   : True,         # Set to True to activate interp
 
 normalization_param = { 'set'   : True,         # Set to True to activate normalization
                         'method': 'STD',      # Select normalization methode (None, STDev, Amplitude, RMS)
-                        'max'   : 1,            # Optional to multiply signal with a value to set amplitude hight, default =1
-                        'x_norm': 0,}           # Equal normalization of previous dignal, x_norm is 'method' value of previous normalizaiton, 0 is default set 'method'
+                        'max'   : 1}            # Optional to multiply signal with a value to set amplitude hight, default =1
 
 noise_param     = { 'inputset'  : False,         # Set the value for noise on input to true or false and include SNR in decibels
-                    'inputdb'   : 40,
-                    'outputset'  : True,         # Set the value for noise on output to true or false and include SNR in decibels
-                    'outputdb'   : 40}
+                    'inputdb'   : 0,
+                    'outputset' : True,         # Set the value for noise on output to true or false and include SNR in decibels
+                    'outputdb'  : 40}
 
 window_param        = { 'set'   : False,        # Set to True to activate windwo
                         'r'     : 0.15}         # Set value of R between 0-1, 0 is rectangular, 1 is Hann window
@@ -232,6 +232,7 @@ for m in range(M):
 
         # Calculate FRF for each period and append to G_n
         G_etfe_p.append(Y_p_period/U_p_period)
+
     # Defined the steady state measurement
     y_p_steady = y_n_transient[N_tf:]
     u_p_steady = u_n_transient[N_tf:]
@@ -270,9 +271,6 @@ else:
     G_export_m=G_ML_m
 
 
-
-
-
 plot_title=rhs.create_plot_title(f_s, N, P, M, plot_signal, multisine_param, chirp_param, interpolation_param, normalization_param, noise_param, window_param, optimizecrest_param, multisine_log_param, LPM_param)
 rhs.export_data_for_visualization_pickle(data_path, G_export, G_export_m,  f_range, G_0, band_range, N, P, M, u_p_steady,t, noise_param, plot_title,fact_crest,fact_effic,fact_loss,fact_quali)
 
@@ -285,7 +283,8 @@ plt.plot(t_transient,u_0_transient)
 plt.show()
 
 # Figure of the created multisine signals frequency domain in Decibel
-plt.plot(f,rhs.DB(U_p_period))
+#plt.plot(f,rhs.DB(U_p_period))
+plt.plot(f,np.abs(U_p_period))
 plt.ylabel('Amplitude (dB)')
 plt.xlabel('Frequency (Hz)')
 plt.xscale('log')
@@ -294,22 +293,21 @@ plt.title(f'Frequency range of the {plot_signal} input signal U')
 plt.show()
 
 
+# Create figure and a single subplot (ax)
+fig, ax = plt.subplots(figsize=(12, 8))  # Wider figure to clearly differentiate multiple lines
+ax.plot(f_range,rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
+ax.plot(f_range,rhs.DB(G_export),'^-',label='$\hat{G}_{1} Export$')
+ax.plot(f_range,rhs.DB(bias_export),'x--',label='$\hat{G}_{1} Bias export$')
+ax.set_title(f'FRF {plot_signal} ,window {window_param["set"]}, plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
+ax.set_title(f' Chirp signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB', fontsize=14)
 
-# Phase plot of the FRF transferfunction with multisine
-plt.plot(f_range,rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
-plt.plot(f_range,rhs.DB(G_export),'o',label='$\hat{G}_{1} Export$')
-plt.plot(f_range,rhs.DB(bias_export),'o',label='$\hat{G}_{1} Bias export$')
-plt.plot(f_range,10*np.log10(var_export),'-',label='$\hat{G}_{1} Variance export$')
-
-plt.title(f'FRF {plot_signal} ,window {window_param["set"]}, plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
-plt.legend(loc='best')
-plt.xlim([f_s/N,f_s/2])
-plt.ylim(-100,25)
-plt.xscale('log')
-plt.ylabel('Magnitude [dB]')
-plt.xlabel('Frequency (Hz)')
-plt.show()
-
+ax.set_xlabel('Frequency (Hz)', fontsize=12)
+ax.set_ylabel('Magnitude [dB]', fontsize=12)
+ax.set_xscale('log')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.legend(loc='upper left', fontsize=10)  # Changed to 'best' to automatically adjust legend placement
+ax.set_xlim([0.009, f_range[-1]])
+#ax.set_ylim([-10, 40])  # Adjusted upper limit and lowered bottom limit for better visibility
 
 
 
