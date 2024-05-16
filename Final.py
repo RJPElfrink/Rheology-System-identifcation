@@ -5,24 +5,27 @@ from scipy.interpolate import interp1d
 from scipy.fft import fft
 from scipy import signal
 import pandas as pd
+import matplotlib.lines as mlines
 import sys
 sys.path.append(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation')
 import Rheosys as rhs
 
 
+
+#np.random.seed(14)
 """Set transfer function parameters"""
 Lambda_constant=1.5                        # Value for lambda n/g
 g_constant=2.5                             # Value for spring constant g
 
-f_s = 10                                   # Sample frequency
-N = 10000                                  # Number of points
-P = 1                                      # Number of repeated periods
-P_tf = 0                                # Number of removed transient periods
+f_s = 20                                    # Sample frequency
+N = 20000                                    # Number of points
+P = 1                                       # Number of repeated periods
+P_tf = 1                                    # Number of removed transient periods
 
-M = 10
+M = 2
 
 data_path = ''
-plot_signal='Multisine'                    # Select 'Chirp' or 'Multsine' to change plots
+plot_signal='Chirp'                    # Select 'Chirp' or 'Multsine' to change plots
 
 multisine_param     = {'phase'  : 'Random',     # Select phase for the multisine, (Schroeder,Random,Linear,Zero,Rudin,Newman)
                         'j1'    : 1,            # Starting frequency multisine
@@ -35,18 +38,18 @@ interpolation_param = { 'set'   : True,         # Set to True to activate interp
                         'kind'  : 0}            # Set kind to 0 for Zero Order Hold, optional every odd power number including 2
 
 normalization_param = { 'set'   : True,         # Set to True to activate normalization
-                        'method': 'STD',      # Select normalization methode (None, STDev, Amplitude, RMS)
+                        'method': 'STD',        # Select normalization methode (None, STDev, Amplitude, RMS)
                         'max'   : 1}            # Optional to multiply signal with a value to set amplitude hight, default =1
 
 noise_param     = { 'inputset'  : False,         # Set the value for noise on input to true or false and include SNR in decibels
-                    'inputdb'   : 0,
-                    'outputset' : True,         # Set the value for noise on output to true or false and include SNR in decibels
+                    'inputdb'   : 20,
+                    'outputset' : False,         # Set the value for noise on output to true or false and include SNR in decibels
                     'outputdb'  : 40}
 
 window_param        = { 'set'   : False,        # Set to True to activate windwo
                         'r'     : 0.15}         # Set value of R between 0-1, 0 is rectangular, 1 is Hann window
 
-optimizecrest_param  = {'set'   : True,       # Set to True to optimize the signal the crest clipping algorithm
+optimizecrest_param  = {'set'   : False,       # Set to True to optimize the signal the crest clipping algorithm
                        'clip'   : 0.8,          # Set clipping value which clips the crest value
                        'R'      : 1000,          # Amount of realization to test the optimized signal u
                       'variable': False,}       # Varible clipping value, True to linearly change 'clip' value from set value to 1
@@ -121,6 +124,8 @@ f_range = np.arange(0,int(band_range[1])*f_0,f_0)
 u_transient= np.tile(u_select, P)
 if P_tf!=0:
     u_transient = np.insert(u_transient,0,u_transient[-N_tf:])
+    print(np.size(u_transient))
+    print("test")
 
 # Save the set transient basic signal and apply further normalization an interpolation
 u_0 = u_select
@@ -162,6 +167,8 @@ G_etfe_p=[]
 G_etfe_m=[]
 G_ML_m=[]
 G_LPM_m =[]
+u_m=[]
+y_m=[]
 
 for m in range(M):
     """
@@ -200,7 +207,6 @@ for m in range(M):
     U_p=[]
     Y_p=[]
 
-
     for p in range(P):
 
         # Calculate indices for extracting one period
@@ -237,6 +243,9 @@ for m in range(M):
     y_p_steady = y_n_transient[N_tf:]
     u_p_steady = u_n_transient[N_tf:]
 
+    u_m.append(u_p_steady)
+    y_m.append(u_p_steady)
+
     # Calculate FFT of the steady state
     Y_p_steady = fft(y_p_steady)
     U_p_steady = fft(u_p_steady)
@@ -247,14 +256,18 @@ for m in range(M):
     G_etfe_m.append(np.mean(G_etfe_p,axis=0))
     if LPM_param['set']:
         G_LPM_m.append(rhs.matpy_LPM(u_p_steady,y_p_steady,u_select,N,f_s,excitedharm_range,LPM_param['order'],LPM_param['dof'],LPM_param['transient']))
+    #if LPM_param['set']:
+        #G_LPM_m.append(rhs.matpy_local(U_p,Y_p,excitedharm_range,LPM_param['order'],LPM_param['dof'],LPM_param['transient']))
+
+#if LPM_param['set']:
+        #G_LPM_m.append(rhs.matpy_robust(u_m,y_m,u_select,N,f_s,excitedharm_range,LPM_param['order'],LPM_param['dof'],LPM_param['transient']))
+
 
 U_M=np.array(U_M)
 Y_M=np.array(Y_M)
 G_etfe=np.array(np.mean(G_etfe_m,axis=0))
 G_ML=np.array(np.mean(G_ML_m,axis=0))
 G_LPM=np.array(np.squeeze(np.mean(G_LPM_m,axis=0)))
-
-
 
 
 """
@@ -278,43 +291,91 @@ bias_export=G_0-G_export
 var_export=np.var(G_etfe_m,axis=0)
 var_export=var_export[1:int(band_range[1])]
 
+#u_no_window=u_0_transient
 
-plt.plot(t_transient,u_0_transient)
+# Create figure and a single subplot (ax)
+fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
+#ax.plot(t_transient,u_no_window,'--',color='Purple',alpha=0.8)
+ax.plot(t_transient,u_0_transient,'-',label='$\hat{G}_{0}$')
+#ax.plot(t_transient,window,'--',color='Red')
+#ax.plot(t_transient,-window,'--',color='Red')
+
+
+ax.set_xlabel('Time [s]', fontsize=16)
+ax.set_ylabel('Amplitude[-]', fontsize=16)
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+method_lines = [
+    mlines.Line2D([], [], color='Blue', marker='', linestyle='-', label='Multisine'),
+    mlines.Line2D([], [], color='Red', marker='', linestyle='-', label='Window'),
+    ]
+labels = [h.get_label() for h in method_lines]
+ax.set_title(f' {plot_signal} signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
+#ax.legend(method_lines,labels,loc='upper center', fontsize=16,ncol=2)
+#ax.set_ylim([-1.5,1.5])
+# Save plot to pdf
+fig.savefig('multisine_transient_timeplot.pdf', bbox_inches='tight')
+plt.tight_layout()
 plt.show()
 
-# Figure of the created multisine signals frequency domain in Decibel
-#plt.plot(f,rhs.DB(U_p_period))
-plt.plot(f,np.abs(U_p_period))
-plt.ylabel('Amplitude (dB)')
-plt.xlabel('Frequency (Hz)')
-plt.xscale('log')
-plt.xlim([f_s/N,f_s/2])
-plt.title(f'Frequency range of the {plot_signal} input signal U')
+
+
+# Create figure and a single subplot (ax)
+fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
+ax.plot(f,rhs.DB(U_p_period),'o',label='$\hat{G}_{0}$')
+ax.set_title(f' {plot_signal} signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
+ax.set_xlabel('Frequency [Hz]', fontsize=16)
+ax.set_ylabel('Amplitude [dB]', fontsize=16)
+ax.set_xscale('log')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.set_xlim([f_s/N,f_s/2])
+ax.set_ylim([-10,70])
+fig.savefig('multisine_transient_amplitudeplot.pdf', bbox_inches='tight')
+plt.tight_layout()
 plt.show()
 
 
 # Create figure and a single subplot (ax)
-fig, ax = plt.subplots(figsize=(12, 8))  # Wider figure to clearly differentiate multiple lines
-ax.plot(f_range,rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
-ax.plot(f_range,rhs.DB(G_export),'^-',label='$\hat{G}_{1} Export$')
-ax.plot(f_range,rhs.DB(bias_export),'x--',label='$\hat{G}_{1} Bias export$')
-ax.set_title(f'FRF {plot_signal} ,window {window_param["set"]}, plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
-ax.set_title(f' Chirp signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB', fontsize=14)
+fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
 
-ax.set_xlabel('Frequency (Hz)', fontsize=12)
-ax.set_ylabel('Magnitude [dB]', fontsize=12)
+# Plot vertical lines instead of 'o' markers
+ax.vlines(f, ymin=0, ymax=rhs.DB(U_p_period), color='Blue', alpha=0.7, label='$\hat{G}_{0}$')
+
+ax.set_title(f'{plot_signal} signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
+ax.set_xlabel('Frequency [Hz]', fontsize=16)
+ax.set_ylabel('Amplitude [dB]', fontsize=16)
 ax.set_xscale('log')
 ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
-ax.legend(loc='upper left', fontsize=10)  # Changed to 'best' to automatically adjust legend placement
-ax.set_xlim([0.009, f_range[-1]])
+ax.set_xlim([f_s/N, f_s/2])
+ax.set_ylim([0, 70])
+#fig.savefig('multisine_transient_amplitudeplot.pdf', bbox_inches='tight')
+plt.tight_layout()
+plt.show()
+
+# Create figure and a single subplot (ax)
+fig, ax = plt.subplots(figsize=(10, 8))  # Wider figure to clearly differentiate multiple lines
+ax.plot(f_range,rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
+ax.plot(f_range,rhs.DB(G_export),'^',label='$\hat{G}_{1} Export$')
+ax.plot(f_range,rhs.DB(bias_export),'x--',label='$\hat{G}_{1} Bias export$')
+#ax.plot(f_range, 10*np.log10(var_export),':',label='Variance')
+ax.set_title(f'FRF {plot_signal} ,window {window_param["set"]}, plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
+ax.set_title(f' Chirp signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB', fontsize=14)
+ax.legend(loc='upper center', fontsize=16,  ncol=2)
+ax.set_xlabel('Frequency (Hz)', fontsize=16)
+ax.set_ylabel('Magnitude [dB]', fontsize=16)
+ax.set_xscale('log')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.set_xlim([f_range[0], f_range[-1]])
+#ax.set_xlim([0.009, f_range[-1]])
 #ax.set_ylim([-10, 40])  # Adjusted upper limit and lowered bottom limit for better visibility
 
-
+plt.tight_layout()
+plt.show()
 
 
 
 """
-LOGARITHMIC PLOTTING
+
+#LOGARITHMIC PLOTTING
 
 #f_range=f_range[f_log]
 G_0=G_0[f_log]
@@ -326,46 +387,57 @@ var_export=var_export[:int(band_range[1])]
 
 U_TEST=fft(u_select)
 xje=multisine_log_param['decade']
+fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
 # Figure of the created multisine signals frequency domain in Decibel
-plt.plot(f,rhs.DB(U_TEST),'o')
-plt.ylabel('Amplitude (dB)')
-plt.xlabel('Frequency (Hz)')
-plt.xscale('log')
-plt.xlim([f_s/N,f_s/2])
-plt.title(f'Frequency range of the {plot_signal} input signal U with {xje} points per decade')
+ax.plot(f,rhs.DB(U_TEST),'o')
+ax.set_xlabel('Frequency [Hz]', fontsize=16)
+ax.set_ylabel('Amplitude [dB]', fontsize=16)
+ax.set_xscale('log')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.set_xlim([f_s/N,f_s/2])
+ax.set_title(f'Frequency range of the {plot_signal} input signal U with {xje} points per decade')
+fig.savefig('chirp_exponential_amplitudeplot.pdf', bbox_inches='tight')
+plt.tight_layout()
 plt.show()
+
+
 
 plt.plot(t,u_p_steady)
 plt.show()
 
 
-
+fig, ax = plt.subplots(figsize=(10, 8))  # Wider figure to clearly differentiate multiple lines
 # Phase plot of the FRF transferfunction with multisine
-plt.plot(f_range[f_log],rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
-plt.plot(f_range[f_log],rhs.DB(G_export),'o',label='$\hat{G}_{1} Export$')
-plt.plot(f_range[f_log],rhs.DB(bias_export),'o',label='$\hat{G}_{1} Bias export$')
-plt.plot(f_range[f_log],10*np.log10(var_export),'-',label='$\hat{G}_{1} Variance export$')
+ax.plot(f_range[f_log],rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
+ax.plot(f_range[f_log],rhs.DB(G_export),'o',label='$\hat{G}_{1} Export$')
+ax.plot(f_range[f_log],rhs.DB(bias_export),'o',label='$\hat{G}_{1} Bias export$')
+ax.plot(f_range[f_log],10*np.log10(var_export),'-',label='$\hat{G}_{1} Variance export$')
 
-plt.title(f'FRF plot with {M} measurments and P={P} periods, N is equal to {N}.\n with {xje} points per decade')
-plt.legend(loc='best')
-plt.xlim([f_s/N,f_s/2])
-plt.ylim(-100,25)
-plt.xscale('log')
-plt.ylabel('Magnitude [dB]')
-plt.xlabel('Frequency (Hz)')
+ax.set_title(f' Chirp signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB', fontsize=14)
+#ax.legend(loc='upper center', fontsize=16,  ncol=2)
+ax.set_xlabel('Frequency (Hz)', fontsize=16)
+ax.set_ylabel('Magnitude [dB]', fontsize=16)
+ax.set_xscale('log')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.set_xlim([f_range[0], f_range[-1]])
+ax.set_xlim([0.009, f_range[-1]])
+#ax.set_ylim([-10, 40])  # Adjusted upper limit and lowered bottom limit for better visibility
+
+plt.tight_layout()
 plt.show()
 
 """
 
 
 
-"""
-COMPARE ML WITH ETFE
 
+#COMPARE ML WITH ETFE
+"""
 
 # FRF calculation by Maximum Likelihood
 var_G_ML=np.var(G_ML_m,axis=0)
 var_G_etfe=np.var(G_etfe_p,axis=0)
+
 """
 
 

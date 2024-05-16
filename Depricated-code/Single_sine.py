@@ -19,6 +19,7 @@ from scipy.interpolate import interp1d
 from scipy.fft import fft,fftshift,ifft,ifftshift,rfft,rfftfreq,irfft,fftfreq
 from scipy import signal
 import Rheosys as rhs
+sys.path.append(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation\Depricated-code')
 import Visualplots
 
 #random.seed(10)

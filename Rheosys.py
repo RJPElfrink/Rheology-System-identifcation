@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.io import savemat
 import matlab.engine
+import matlab
 from scipy.fft import fft,ifft
 import pandas as pd
 import pickle
@@ -154,7 +155,7 @@ def newman_phase(J, j1):
 
 # Main function for generating multisine signals
 
-def multisine(f_s, N, frequency_limits, A_vect=None,phase_response='Schroeder', Tau=1 , time_domain=True):
+def multisine(f_s, N, frequency_limits, A_vect=None,phase_response='Schroeder', Tau=10 , time_domain=True):
     """
     Generates a multisine signal.
     Parameters:
@@ -521,6 +522,79 @@ def matpy_LPM(u,y,reference_signal,N,fs,excitedharmonics,order=2,dof=1,transient
 
     return G_LPM
 
+def matpy_robust(u,y,reference_signal,N,fs,excitedharmonics,order=2,dof=1,transient_on=1):
+
+    eng = matlab.engine.start_matlab()
+
+    eng.cd(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation\EngineMatpy', nargout=0)
+    # test connection with the right folder, triarea is a different script in the same folder
+    #ret = eng.triarea(1.0,5.0)
+    # Assuming u_m is a list of lists, where each sublist is of equal length x
+    u_first = matlab.double(u)
+    y_first = matlab.double(y)
+
+    # Reshape the MATLAB array to 4D (1, 1, M, x) where M is the number of sublists (second size of u_m)
+    # and x is the length of each sublist
+    M = len(u)
+    x = len(u[0])
+
+    # Using MATLAB's `reshape` function to change dimensions. Note that MATLAB uses 1-based indexing
+    u_matlab = eng.eval(f"reshape({u_first}, [1, 1, {M}, {x}])", nargout=1)
+    y_matlab = eng.eval(f"reshape({y_first}, [1, 1, {M}, {x}])", nargout=1)
+
+    r_matlab = matlab.double(reference_signal)  # Convert list to MATLAB double
+    ExcitedHarm_matlab = matlab.double(excitedharmonics)  # Convert list to MATLAB double
+    order_matlab=matlab.double(order)
+    dof_matlab=matlab.double(dof)
+    transient_matlab=matlab.double(transient_on)
+    print(u_matlab)
+
+    # Call the Matpy function with data from Python
+    output_data_matlab = eng.Matpy_robust(u_matlab, y_matlab, r_matlab, N, fs, ExcitedHarm_matlab,order_matlab,dof_matlab,transient_matlab)
+
+
+    # Accessing the encapsulated data in Python
+    #for i in range(0, M ):
+    #G_i = output_data_matlab['G'][0]
+
+    # Stop MATLAB engine
+    eng.quit()
+    G_LPM=np.squeeze(np.array(output_data_matlab['G']))
+
+    return G_LPM
+
+def matpy_local(U,Y,excitedharmonics,order=2,dof=1,transient_on=1,step=1):
+
+    eng = matlab.engine.start_matlab()
+
+    eng.cd(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation\EngineMatpy', nargout=0)
+    # test connection with the right folder, triarea is a different script in the same folder
+    #ret = eng.triarea(1.0,5.0)
+
+
+
+    # Convert Python data to MATLAB compatible types
+    U_matlab = matlab.double(U,is_complex=True)  # Convert list to MATLAB double
+    Y_matlab = matlab.double(Y,is_complex=True)  # Convert list to MATLAB double
+    ExcitedHarm_matlab = matlab.double(excitedharmonics)  # Convert list to MATLAB double
+    order_matlab=matlab.double(order)
+    dof_matlab=matlab.double(dof)
+    transient_matlab=matlab.double(transient_on)
+    step_matlab=matlab.double(step)
+
+    # Call the Matpy function with data from Python
+    output_data_matlab = eng.Matpy_local(U_matlab, Y_matlab, ExcitedHarm_matlab,order_matlab,dof_matlab,transient_matlab,step_matlab)
+
+
+    # Accessing the encapsulated data in Python
+    #for i in range(0, M ):
+    #G_i = output_data_matlab['G'][0]
+
+    # Stop MATLAB engine
+    eng.quit()
+    G_LPM=np.squeeze(np.array(output_data_matlab['G']))
+
+    return G_LPM
 
 def export_data_for_visualization_pickle(base_filepath, G, G_m, f_range, G_0, band_range, N, P,M, u_steady, t, noise, plot_title,fact_crest,fact_effic,fact_loss,fact_quali):
     # Preparing the data with adjustments

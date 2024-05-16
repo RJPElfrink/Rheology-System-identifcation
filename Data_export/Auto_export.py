@@ -9,8 +9,13 @@ import pandas as pd
 import sys
 sys.path.append(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation')
 import Rheosys as rhs
+import os
+# Specify the new desired working directory
+new_directory = r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation\Data_export'
 
-#np.seterr(over='ignore')
+# Change the current working directory
+os.chdir(new_directory)
+print("Current Working Directory:", os.getcwd())
 
 def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecrest_set, N, P_tf, noise_input_set, noise_input_val, noise_output_set, noise_output_val):
     print(f"Running analysis with settings: {data_path_set}, Plot Signal: {plot_signal_set}")
@@ -331,7 +336,7 @@ sixsignals = [
 ]
 
 noise_levels = [
-    #{'noise_input_set': False, 'noise_input_val': 999, 'noise_output_set': False, 'noise_output_val': 999},
+    {'noise_input_set': False, 'noise_input_val': 999, 'noise_output_set': False, 'noise_output_val': 999},
     #{'noise_input_set': False, 'noise_input_val': 999, 'noise_output_set': True, 'noise_output_val': 40},
     #{'noise_input_set': False, 'noise_input_val': 999, 'noise_output_set': True, 'noise_output_val': 20},
     #{'noise_input_set': False, 'noise_input_val': 999, 'noise_output_set': True, 'noise_output_val': 0},
@@ -339,7 +344,7 @@ noise_levels = [
     #{'noise_input_set': True, 'noise_input_val': 0, 'noise_output_set': True, 'noise_output_val': 20},
     #{'noise_input_set': True, 'noise_input_val': 0, 'noise_output_set': True, 'noise_output_val': 0},
     #{'noise_input_set': True, 'noise_input_val': 20, 'noise_output_set': True, 'noise_output_val': 40},
-    #{'noise_input_set': True, 'noise_input_val': 20, 'noise_output_set': True, 'noise_output_val': 20},
+    #'noise_input_set': True, 'noise_input_val': 20, 'noise_output_set': True, 'noise_output_val': 20},
     #{'noise_input_set': True, 'noise_input_val': 20, 'noise_output_set': True, 'noise_output_val': 0},
     #{'noise_input_set': True, 'noise_input_val': 40, 'noise_output_set': True, 'noise_output_val': 40},
     #{'noise_input_set': True, 'noise_input_val': 40, 'noise_output_set': True, 'noise_output_val': 20},
@@ -361,8 +366,9 @@ for signal_config in sixsignals:
         data_path_set += '_lpm' if signal_config['lpm_set'] else ''
         data_path_set += f"_input_{noise_config['noise_input_val']}dB"
         data_path_set += f"_output_{noise_config['noise_output_val']}dB"
-        data_path_set += f"_N_{signal_config['N']}"
-        #data_path_set += f"_P_10"
+        #data_path_set += f"_N_{signal_config['N']}"
+        data_path_set += f"_N_20000"
+        #data_path_set += f"_P_2"
 
         run_analysis(
             data_path_set=data_path_set,

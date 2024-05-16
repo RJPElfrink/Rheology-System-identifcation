@@ -1,4 +1,5 @@
 
+
 function output_data = nieuwe(u,y,r,N,fs,ExcitedHarm,order,dof,transient)
 % data 
 
