@@ -17,7 +17,7 @@ new_directory = r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git
 os.chdir(new_directory)
 print("Current Working Directory:", os.getcwd())
 
-def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecrest_set, N, P_tf, noise_input_set, noise_input_val, noise_output_set, noise_output_val):
+def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecrest_set, N, P_tf,P, noise_input_set, noise_input_val, noise_output_set, noise_output_val):
     print(f"Running analysis with settings: {data_path_set}, Plot Signal: {plot_signal_set}")
     print(f"Window Enabled: {window_set}, LPM Enabled: {lpm_set}, Optimize Crest: {optimizecrest_set}")
     print(f"Sample Points (N): {N}, Transient Removal (P_tf): {P_tf}")
@@ -29,11 +29,11 @@ def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecr
 
     f_s = 20                                    # Sample frequency
     N = N                                  # Number of points
-    P = 1                                      # Number of repeated periods
+    P = P                                      # Number of repeated periods
     P_tf = P_tf                                # Number of removed transient periods
 
-    M = 100
-
+    M = 2
+    f_0   = f_s/N                                         # Excitation frequency
     data_path = data_path_set
     plot_signal=plot_signal_set                    # Select 'Chirp' or 'Multsine' to change plots
 
@@ -69,15 +69,17 @@ def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecr
                         'decade' : 10}           # Amount of frequencies per decade, j1 and j2 are defined in 'multisine_params'
 
     LPM_param           = {'set'    : lpm_set,        # Set to True To calculate the LocalPolynomialMeasurement set it to True
-                    'order'      : 2,            # method.order[2] order of approximation
+                    'order'      : 4,            # method.order[2] order of approximation
                     'dof'        : 1,            # method.dof degrees of freedom, independent experiments default = 1
                     'transient'  : 1}            # method.transient, include transien estimation = 1, exclude transient estimation = 0
 
-
+    alias_filter        = { 'set'   : True,     # Set anti-alias filter to true to use it
+                           'cutoff' : 1-f_0,    # Set cut off frequency, max 1-f_0
+                           'order'  : 4}        # Set buttering order
     """ Calculation of Time window"""
     check = rhs.check_variables(f_s,N,P,P_tf,str(window_param['set']))
 
-    f_0   = f_s/N                                         # Excitation frequency
+
     T     = N/f_s                                         # Time length
     t     = np.linspace(0, T,N,endpoint=False)            # Time vector
     f     = np.linspace(0,f_s,N,endpoint=False)           # Frequency range
@@ -168,6 +170,8 @@ def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecr
     if normalization_param['set']:
         u_0_transient=rhs.normalization(u_0_transient,normalization_param['method'],normalization_param['max'])
 
+    # Design an anti-aliasing filter
+    b, a = signal.butter(alias_filter['order'], alias_filter['cutoff'], btype='low')
 
     # Initialize lists to collect data
     U_M = []
@@ -189,6 +193,11 @@ def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecr
             u_n_transient=u_0_transient + n_u
         else:
             u_n_transient=u_0_transient
+        if alias_filter['set']:
+            u_n_transient= signal.filtfilt(b, a, u_n_transient)
+            u_n_transient= np.ascontiguousarray(u_n_transient)
+        else:
+            u_n_transient=u_n_transient
 
 
         # Compute the response output y by
@@ -202,6 +211,13 @@ def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecr
         else:
             y_0_transient=np.squeeze(y_out)          # y output in time domain entire transient signal
             y_n_transient=y_0_transient
+
+            if alias_filter['set']:
+                y_n_transient=signal.filtfilt(b, a, y_n_transient)
+                y_n_transient= np.ascontiguousarray(y_n_transient)
+
+            else:
+                y_n_transient=y_n_transient
 
         """
         CALCULATION OF G^ IN MULTIPLE PERIODS
@@ -327,12 +343,24 @@ def run_analysis(data_path_set, plot_signal_set, window_set, lpm_set, optimizecr
 
 # Configuration Dictionaries
 sixsignals = [
-    {'plot_signal_set': 'Chirp', 'window_set': True, 'optimizecrest_set': False, 'lpm_set': False, 'N': 20000, 'P_tf': 0},
-    {'plot_signal_set': 'Chirp', 'window_set': False, 'optimizecrest_set': False, 'lpm_set': True, 'N': 20000, 'P_tf': 0},
-    {'plot_signal_set': 'Chirp', 'window_set': False, 'optimizecrest_set': False, 'lpm_set': False, 'N': 16000, 'P_tf': 0.25},
-    {'plot_signal_set': 'Multisine', 'window_set': True, 'optimizecrest_set': True, 'lpm_set': False, 'N': 20000, 'P_tf': 0},
-    {'plot_signal_set': 'Multisine', 'window_set': False, 'optimizecrest_set': True, 'lpm_set': True, 'N': 20000, 'P_tf': 0},
-    {'plot_signal_set': 'Multisine', 'window_set': False, 'optimizecrest_set': True, 'lpm_set': False, 'N': 16000, 'P_tf': 0.25}
+    {'plot_signal_set': 'Chirp', 'window_set': True, 'optimizecrest_set': False, 'lpm_set': False, 'N': 20000, 'P_tf': 0, 'P':1},
+    {'plot_signal_set': 'Chirp', 'window_set': False, 'optimizecrest_set': False, 'lpm_set': True, 'N': 20000, 'P_tf': 0, 'P':1},
+    {'plot_signal_set': 'Chirp', 'window_set': False, 'optimizecrest_set': False, 'lpm_set': False, 'N': 16000, 'P_tf': 0.25, 'P':1},
+    {'plot_signal_set': 'Multisine', 'window_set': True, 'optimizecrest_set': True, 'lpm_set': False, 'N': 20000, 'P_tf': 0, 'P':1},
+    {'plot_signal_set': 'Multisine', 'window_set': False, 'optimizecrest_set': True, 'lpm_set': True, 'N': 20000, 'P_tf': 0, 'P':1},
+    {'plot_signal_set': 'Multisine', 'window_set': False, 'optimizecrest_set': True, 'lpm_set': False, 'N': 16000, 'P_tf': 0.25,'P':1},
+    #{'plot_signal_set': 'Chirp', 'window_set': True, 'optimizecrest_set': False, 'lpm_set': False, 'N': 10000, 'P_tf': 0, 'P':2},
+    #{'plot_signal_set': 'Chirp', 'window_set': False, 'optimizecrest_set': False, 'lpm_set': True, 'N': 10000, 'P_tf': 0, 'P':2},
+    #{'plot_signal_set': 'Chirp', 'window_set': False, 'optimizecrest_set': False, 'lpm_set': False, 'N': 8000, 'P_tf': 0.25, 'P':2},
+    #{'plot_signal_set': 'Multisine', 'window_set': True, 'optimizecrest_set': True, 'lpm_set': False, 'N': 10000, 'P_tf': 0, 'P':2},
+    #{'plot_signal_set': 'Multisine', 'window_set': False, 'optimizecrest_set': True, 'lpm_set': True, 'N': 10000, 'P_tf': 0, 'P':2},
+    #{'plot_signal_set': 'Multisine', 'window_set': False, 'optimizecrest_set': True, 'lpm_set': False, 'N': 8000, 'P_tf': 0.25,'P':2},
+    # {'plot_signal_set': 'Chirp', 'window_set': True, 'optimizecrest_set': False, 'lpm_set': False, 'N': 5000, 'P_tf': 0, 'P':4},
+    #{'plot_signal_set': 'Chirp', 'window_set': False, 'optimizecrest_set': False, 'lpm_set': True, 'N': 5000, 'P_tf': 0, 'P':4},
+    #{'plot_signal_set': 'Chirp', 'window_set': False, 'optimizecrest_set': False, 'lpm_set': False, 'N': 4000, 'P_tf': 0.25, 'P':4},
+    #{'plot_signal_set': 'Multisine', 'window_set': True, 'optimizecrest_set': True, 'lpm_set': False, 'N': 5000, 'P_tf': 0, 'P':4},
+    #{'plot_signal_set': 'Multisine', 'window_set': False, 'optimizecrest_set': True, 'lpm_set': True, 'N': 5000, 'P_tf': 0, 'P':4},
+    #{'plot_signal_set': 'Multisine', 'window_set': False, 'optimizecrest_set': True, 'lpm_set': False, 'N': 4000, 'P_tf': 0.25,'P':4}
 ]
 
 noise_levels = [
@@ -366,9 +394,8 @@ for signal_config in sixsignals:
         data_path_set += '_lpm' if signal_config['lpm_set'] else ''
         data_path_set += f"_input_{noise_config['noise_input_val']}dB"
         data_path_set += f"_output_{noise_config['noise_output_val']}dB"
-        #data_path_set += f"_N_{signal_config['N']}"
-        data_path_set += f"_N_20000"
-        #data_path_set += f"_P_2"
+        data_path_set += f"_N_{signal_config['N']}"
+        data_path_set += f"_P_{signal_config['P']}"
 
         run_analysis(
             data_path_set=data_path_set,
@@ -378,6 +405,7 @@ for signal_config in sixsignals:
             optimizecrest_set=signal_config['optimizecrest_set'],
             N=signal_config['N'],
             P_tf=signal_config['P_tf'],
+            P=signal_config['P'],
             noise_input_set=noise_config['noise_input_set'],
             noise_input_val=noise_config['noise_input_val'],
             noise_output_set=noise_config['noise_output_set'],

@@ -9,18 +9,19 @@ import matplotlib.lines as mlines
 import sys
 sys.path.append(r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git\Rheology-System-identifcation')
 import Rheosys as rhs
+from scipy.signal import lsim, TransferFunction, butter, filtfilt
 
 
 
-#np.random.seed(14)
+np.random.seed(14)
 """Set transfer function parameters"""
 Lambda_constant=1.5                        # Value for lambda n/g
 g_constant=2.5                             # Value for spring constant g
 
 f_s = 20                                    # Sample frequency
-N = 20000                                    # Number of points
+N = 2000                                    # Number of points
 P = 1                                       # Number of repeated periods
-P_tf = 1                                    # Number of removed transient periods
+P_tf = 0                                    # Number of removed transient periods
 
 M = 2
 
@@ -43,10 +44,10 @@ normalization_param = { 'set'   : True,         # Set to True to activate normal
 
 noise_param     = { 'inputset'  : False,         # Set the value for noise on input to true or false and include SNR in decibels
                     'inputdb'   : 20,
-                    'outputset' : False,         # Set the value for noise on output to true or false and include SNR in decibels
+                    'outputset' : True,         # Set the value for noise on output to true or false and include SNR in decibels
                     'outputdb'  : 40}
 
-window_param        = { 'set'   : False,        # Set to True to activate windwo
+window_param        = { 'set'   : True,        # Set to True to activate windwo
                         'r'     : 0.15}         # Set value of R between 0-1, 0 is rectangular, 1 is Hann window
 
 optimizecrest_param  = {'set'   : False,       # Set to True to optimize the signal the crest clipping algorithm
@@ -57,11 +58,12 @@ optimizecrest_param  = {'set'   : False,       # Set to True to optimize the sig
 multisine_log_param = {'set'    : False,        # Optional Logarithmic amplitude vector A in multisin
                        'decade' : 10}           # Amount of frequencies per decade, j1 and j2 are defined in 'multisine_params'
 
-LPM_param           = {'set'    : False,        # Set to True To calculate the LocalPolynomialMeasurement set it to True
-                   'order'      : 2,            # method.order[2] order of approximation
+LPM_param           = {'set'    : True,        # Set to True To calculate the LocalPolynomialMeasurement set it to True
+                   'order'      : 4,            # method.order[2] order of approximation
                    'dof'        : 1,            # method.dof degrees of freedom, independent experiments default = 1
                    'transient'  : 1}            # method.transient, include transien estimation = 1, exclude transient estimation = 0
 
+alias_filter = { 'set': True}
 
 """ Calculation of Time window"""
 check = rhs.check_variables(f_s,N,P,P_tf,str(window_param['set']))
@@ -170,6 +172,16 @@ G_LPM_m =[]
 u_m=[]
 y_m=[]
 
+# Design an anti-aliasing filter
+cutoff = 1-f_0  # Cutoff frequency, less than Nyquist
+order = 4  # Filter order
+
+b, a = butter(order, cutoff, btype='low')
+
+# Apply the filter to input and output signals
+#x_filtered = filtfilt(b, a, x)
+#y_filtered = filtfilt(b, a, y)
+
 for m in range(M):
     """
     CALCULATIONS OF NOISE
@@ -182,6 +194,14 @@ for m in range(M):
         u_n_transient=u_0_transient + n_u
     else:
         u_n_transient=u_0_transient
+
+    if alias_filter['set']:
+        u_n_transient= filtfilt(b, a, u_n_transient)
+        u_n_transient= np.ascontiguousarray(u_n_transient)
+
+
+    else:
+        u_n_transient=u_n_transient
 
 
     # Compute the response output y by
@@ -196,6 +216,11 @@ for m in range(M):
         y_0_transient=np.squeeze(y_out)          # y output in time domain entire transient signal
         y_n_transient=y_0_transient
 
+    if alias_filter['set']:
+        y_n_transient=filtfilt(b, a, y_n_transient)
+        y_n_transient= np.ascontiguousarray(y_n_transient)
+    else:
+        y_n_transient=y_n_transient
     """
     CALCULATION OF G^ IN MULTIPLE PERIODS
     Depending on the amount of selected transfer free periods
@@ -293,27 +318,72 @@ var_export=var_export[1:int(band_range[1])]
 
 #u_no_window=u_0_transient
 
+
+
+
+# Create figure and a single subplot (ax)
+fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
+ax.plot(f_range,rhs.DB(G_export),'^',label='$\hat{G}_{1} Export$')
+ax.plot(f_range,rhs.DB(bias_export),'x--',label='$\hat{G}_{1} Bias export$')
+ax.plot(f_range, 10*np.log10(var_export),':',label='Variance')
+#ax.set_title(f'FRF {plot_signal} ,window {window_param["set"]}, plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
+#ax.set_title(f' Chirp signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
+#ax.legend(loc='lower left', fontsize=18,  ncol=2)
+ax.set_xlabel('Frequency [Hz]', fontsize=18)
+ax.set_ylabel('Magnitude [dB]', fontsize=18)
+ax.set_xscale('log')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
+#ax.set_xlim([f_range[0], f_range[-1]])
+#ax.set_xlim([0.009, f_range[-1]])
+#ax.set_ylim([-10, 40])  # Adjusted upper limit and lowered bottom limit for better visibility
+ax.tick_params(axis='both', which='major', labelsize=14)
+fig.savefig('maxwell_sysid_FRF.pdf', bbox_inches='tight')
+plt.tight_layout()
+plt.show()
+"""
+# Create figure and a single subplot (ax)
+fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
+
+# Plot vertical lines instead of 'o' markers
+ax.vlines(f, ymin=0, ymax=rhs.DB(U_p_period), alpha=0.7, label='$\hat{G}_{0}$')
+# Add markers at the top of the lines
+ax.plot(f, rhs.DB(U_p_period), 'o', label='$\hat{G}_{0}$')  # Use 's' for squares, 'o' for circles
+ax.set_title(f'{plot_signal}  signal FRF with f_s {f_s} and band range {band_range} \n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
+ax.set_xlabel('Frequency [Hz]', fontsize=16)
+ax.set_ylabel('Amplitude [dB]', fontsize=16)
+ax.set_xscale('log')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
+ax.tick_params(axis='both', which='major', labelsize=14)
+#ax.set_xlim([0.009, f_s/2])
+ax.set_xlim([f_s/N,f_s/2])
+ax.set_ylim([0, 70])
+#fig.savefig('multisine_transient_amplitudeplot.pdf', bbox_inches='tight')
+plt.tight_layout()
+plt.show()
+
+
 # Create figure and a single subplot (ax)
 fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
 #ax.plot(t_transient,u_no_window,'--',color='Purple',alpha=0.8)
 ax.plot(t_transient,u_0_transient,'-',label='$\hat{G}_{0}$')
-#ax.plot(t_transient,window,'--',color='Red')
-#ax.plot(t_transient,-window,'--',color='Red')
+#ax.plot(t_transient,window,'--',linewidth=3,color='Red')
+#ax.plot(t_transient,-window,'--',linewidth=3,color='Red')
 
 
-ax.set_xlabel('Time [s]', fontsize=16)
-ax.set_ylabel('Amplitude[-]', fontsize=16)
-ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.set_xlabel('Time [s]', fontsize=18)
+ax.set_ylabel('Amplitude[-]', fontsize=18)
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
 method_lines = [
     mlines.Line2D([], [], color='Blue', marker='', linestyle='-', label='Multisine'),
     mlines.Line2D([], [], color='Red', marker='', linestyle='-', label='Window'),
     ]
 labels = [h.get_label() for h in method_lines]
-ax.set_title(f' {plot_signal} signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
-#ax.legend(method_lines,labels,loc='upper center', fontsize=16,ncol=2)
-#ax.set_ylim([-1.5,1.5])
+ax.tick_params(axis='both', which='major', labelsize=14)
+#ax.set_ylim([-1.5,2.0])
+ax.set_title(f' {plot_signal}  signal FRF with f_s {f_s} and band range {band_range} \n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
+#ax.legend(method_lines,labels,loc='upper center', fontsize=18,ncol=2)
 # Save plot to pdf
-fig.savefig('multisine_transient_timeplot.pdf', bbox_inches='tight')
+fig.savefig('multisine_randomcrest2000_timeplot.pdf', bbox_inches='tight')
 plt.tight_layout()
 plt.show()
 
@@ -322,59 +392,136 @@ plt.show()
 # Create figure and a single subplot (ax)
 fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
 ax.plot(f,rhs.DB(U_p_period),'o',label='$\hat{G}_{0}$')
-ax.set_title(f' {plot_signal} signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
-ax.set_xlabel('Frequency [Hz]', fontsize=16)
-ax.set_ylabel('Amplitude [dB]', fontsize=16)
+ax.set_title(f' {plot_signal} signal FRF with f_s {f_s} and band range {band_range} \n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
+ax.set_xlabel('Frequency [Hz]', fontsize=18)
+ax.set_ylabel('Amplitude [dB]', fontsize=18)
 ax.set_xscale('log')
-ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
+ax.tick_params(axis='both', which='major', labelsize=14)
 ax.set_xlim([f_s/N,f_s/2])
-ax.set_ylim([-10,70])
-fig.savefig('multisine_transient_amplitudeplot.pdf', bbox_inches='tight')
+ax.set_ylim([-10,50])
+fig.savefig('multisine_randomcrest2000_amplitudeplot.pdf', bbox_inches='tight')
 plt.tight_layout()
 plt.show()
+
+
 
 
 # Create figure and a single subplot (ax)
 fig, ax = plt.subplots(figsize=(8, 6))  # Wider figure to clearly differentiate multiple lines
-
-# Plot vertical lines instead of 'o' markers
-ax.vlines(f, ymin=0, ymax=rhs.DB(U_p_period), color='Blue', alpha=0.7, label='$\hat{G}_{0}$')
-
-ax.set_title(f'{plot_signal} signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
-ax.set_xlabel('Frequency [Hz]', fontsize=16)
-ax.set_ylabel('Amplitude [dB]', fontsize=16)
-ax.set_xscale('log')
-ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
-ax.set_xlim([f_s/N, f_s/2])
-ax.set_ylim([0, 70])
-#fig.savefig('multisine_transient_amplitudeplot.pdf', bbox_inches='tight')
-plt.tight_layout()
-plt.show()
-
-# Create figure and a single subplot (ax)
-fig, ax = plt.subplots(figsize=(10, 8))  # Wider figure to clearly differentiate multiple lines
-ax.plot(f_range,rhs.DB(G_0),'-',label='$\hat{G}_{0}$')
-ax.plot(f_range,rhs.DB(G_export),'^',label='$\hat{G}_{1} Export$')
-ax.plot(f_range,rhs.DB(bias_export),'x--',label='$\hat{G}_{1} Bias export$')
+ax.plot(f_range,rhs.DB((G_0)),'-',label='$G_{0}$',color='#440154')
+#ax.plot(f_range,rhs.DB(G_export),'^',label='$\hat{G}_{1} Export$')
+#ax.plot(f_range,rhs.DB(bias_export),'x--',label='$\hat{G}_{1} Bias export$')
 #ax.plot(f_range, 10*np.log10(var_export),':',label='Variance')
-ax.set_title(f'FRF {plot_signal} ,window {window_param["set"]}, plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
-ax.set_title(f' Chirp signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB', fontsize=14)
-ax.legend(loc='upper center', fontsize=16,  ncol=2)
-ax.set_xlabel('Frequency (Hz)', fontsize=16)
-ax.set_ylabel('Magnitude [dB]', fontsize=16)
+#ax.set_title(f'FRF {plot_signal} ,window {window_param["set"]}, plot with {M} measurments and P={P} periods, N is equal to {N}.\n Noise values SNR$_u$ {noise_param["inputdb"]} dB, SNR$_y$ {noise_param["outputdb"]} dB, ')
+#ax.set_title(f' Chirp signal Frequency Response Function Analysis\n{M} Measurements, P={P} Periods, N={N} \n Without input noise, output noise ny=0dB \n', fontsize=14)
+ax.legend(loc='lower left', fontsize=18,  ncol=2)
+ax.set_xlabel('Frequency [Hz]', fontsize=18)
+ax.set_ylabel('Magnitude [dB]', fontsize=18)
 ax.set_xscale('log')
-ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.5)
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
 ax.set_xlim([f_range[0], f_range[-1]])
 #ax.set_xlim([0.009, f_range[-1]])
 #ax.set_ylim([-10, 40])  # Adjusted upper limit and lowered bottom limit for better visibility
-
+ax.tick_params(axis='both', which='major', labelsize=14)
+fig.savefig('maxwell_sysid_FRF.pdf', bbox_inches='tight')
 plt.tight_layout()
 plt.show()
 
 
+max_value = np.max(u_0_transient)
+min_value = np.min(u_0_transient)
+amplitude = (max_value - min_value) / 2
+
+# Response of the Maxwell model (exponential decay for transient behavior)
+transient_response = amplitude * np.exp(-t_transient / Lambda_constant)
+
+# Plotting the chirp signal and the transient response
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))  # Two subplots
+
+# First subplot
+ax1.plot(t_transient, u_0_transient, label='Chirp Signal')
+ax1.axvline(x=P_tf*T, color='red', linestyle='--', label='Estimated Transient Time (6s)')
+ax1.set_xlabel('Time [s]', fontsize=18)
+ax1.set_ylabel('Amplitude [-]', fontsize=18)
+ax1.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
+ax1.tick_params(axis='both', which='major', labelsize=14)
+# Second subplot
+ax2.plot(t_transient, transient_response, label='Transient Response', color='#2ca02c')
+ax2.axvline(x=P_tf*T, color='red', linestyle='--', label='Clipping point')
+ax2.axhline(y=0.000001, color='gray', linestyle='--', label='Threshold')
+ax2.set_xlabel('Time [s]', fontsize=18)
+ax2.set_ylabel('Amplitude [-]', fontsize=18)
+ax2.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
+ax2.legend(fontsize=18)
+ax2.set_yscale('log')
+ax2.tick_params(axis='both', which='major', labelsize=14)
+plt.tight_layout()
+fig.savefig('chirp_transient_decay.pdf', bbox_inches='tight')
+plt.show()
+# Frequency range in Hz
+"""
+frequencies = f
+
+
+
+# Compute G' (storage modulus) and G'' (loss modulus)
+G_prime = g_constant / (1 + (2 * np.pi * frequencies * Lambda_constant)**2)
+G_double_prime = (g_constant * 2 * np.pi * frequencies * Lambda_constant) / (1 + (2 * np.pi * frequencies * Lambda_constant)**2)
+
+# Plotting
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.plot(frequencies, G_prime, label="G' (Storage Modulus)", color='#1f77b4')
+ax.plot(frequencies, G_double_prime, label="G'' (Loss Modulus)", color='#ff7f0e')
+ax.set_xlabel('Frequency [Hz]', fontsize=18)
+ax.set_ylabel('G\', G\" [Pa]', fontsize=18)
+ax.set_xscale('log')
+ax.set_yscale('log')
+#ax.set_title(f'Storage and Loss Moduli for Maxwell System (Log-Log Scale)\n')
+ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
+ax.tick_params(axis='both', which='major', labelsize=14)
+#ax.set_xlim([f_range[0], f_range[-1]])
+#ax.set_ylim([1e-2, 1e1])  # Set y limits to visualize the data appropriately
+ax.legend(loc='lower left' ,fontsize=20)
+ax.set_xlim([0.007, f_range[-1]])
+plt.tight_layout()
+fig.savefig('maxwell_rheology_FRF.pdf', bbox_inches='tight')
+plt.show()
+
+
+
+
+
+# Plotting the chirp signal and the transient response
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6))  # Two subplots
+
+# First subplot
+ax1.plot(w_tf, rhs.DB(mag_tf), '-', label="G_0",color='#440154')
+ax1.set_ylabel('Amplitude [dB]', fontsize=18)
+ax1.set_xscale('log')
+ax1.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
+ax1.tick_params(axis='both', which='major', labelsize=14)
+# Second subplot
+ax2.set_xscale('log')
+ax2.plot(w_tf, np.rad2deg(phase_tf), '-', label="G_0",color='#440154')
+ax2.set_ylabel('Phase [degree]', fontsize=18)
+ax2.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
+#ax2.legend(fontsize=18)
+ax1.yaxis.set_label_position("right")
+ax1.yaxis.tick_right()
+
+ax2.yaxis.set_label_position("right")
+ax2.yaxis.tick_right()
+
+ax2.set_xlabel('Frequency [Hz]', fontsize=20)
+ax2.tick_params(axis='both', which='major', labelsize=14)
+plt.tight_layout()
+ax1.set_xlim([f_range[0], f_range[-1]])
+ax2.set_xlim([f_range[0], f_range[-1]])
+fig.savefig('Bode_plot.pdf', bbox_inches='tight')
+plt.show()
 
 """
-
 #LOGARITHMIC PLOTTING
 
 #f_range=f_range[f_log]

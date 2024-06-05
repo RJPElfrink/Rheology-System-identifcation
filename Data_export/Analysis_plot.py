@@ -18,14 +18,14 @@ new_directory = r'C:\Users\R.J.P. Elfrink\OneDrive - TU Eindhoven\Graduation\Git
 os.chdir(new_directory)
 print("Current Working Directory:", os.getcwd())
 
-chirp_window=rhs.load_data_for_visualization_pickle('Chirp_window_input_999dB_output_20dB_N_20000_P_4.pickle')
-chirp_transient=rhs.load_data_for_visualization_pickle('Chirp_transient_input_999dB_output_20dB_N_20000_P_4.pickle')
-chirp_lpm=rhs.load_data_for_visualization_pickle('Chirp_lpm_input_999dB_output_20dB_N_20000_P_4.pickle')
+chirp_window=rhs.load_data_for_visualization_pickle('Chirp_window_input_999dB_output_999dB_N_20000_P_1.pickle')
+chirp_transient=rhs.load_data_for_visualization_pickle('Chirp_transient_input_999dB_output_999dB_N_16000_P_1.pickle')
+chirp_lpm=rhs.load_data_for_visualization_pickle('Chirp_lpm_input_999dB_output_999dB_N_20000_P_1.pickle')
 
 #multisine_schroeder = rhs.load_data_for_visualization_pickle('Multisine_oeder.pickle')
-multisine_window=rhs.load_data_for_visualization_pickle('Multisine_crest_window_input_999dB_output_20dB_N_20000_P_4.pickle')
-multisine_transient = rhs.load_data_for_visualization_pickle('Multisine_crest_transient_input_999dB_output_20dB_N_20000_P_4.pickle')
-multisine_lpm = rhs.load_data_for_visualization_pickle('Multisine_crest_lpm_input_999dB_output_20dB_N_20000_P_4.pickle')
+multisine_window=rhs.load_data_for_visualization_pickle('Multisine_crest_window_input_999dB_output_999dB_N_20000_P_1.pickle')
+multisine_transient = rhs.load_data_for_visualization_pickle('Multisine_crest_transient_input_999dB_output_999dB_N_16000_P_1.pickle')
+multisine_lpm = rhs.load_data_for_visualization_pickle('Multisine_crest_lpm_input_999dB_output_999dB_N_20000_P_1.pickle')
 
 M   = chirp_window['M']
 P   = chirp_window['P']
@@ -101,12 +101,16 @@ Chirp plots
 fig, ax = plt.subplots(figsize=(10, 8))  # Wider figure to clearly differentiate multiple lines
 # Plot lines for 'multisine_schroeder_lpm'
 ax.plot(f_range, rhs.DB(chirp_window['G_0']), '-', label='$G_{0}$', color=colors['Zero'])
+#ax.plot(f_range, rhs.DB(chirp_window['bias']), '^-',markerfacecolor='none', label='Bias $\hat{G}_{1}$ Chirp windowing', color=colors['One'])
 ax.plot(f_range, rhs.DB(chirp_window['bias']), '^-', label='Bias $\hat{G}_{1}$ Chirp windowing', color=colors['One'])
 ax.plot(f_range, 10*np.log10(chirp_window['var']), '--', linewidth=3, label='Variance $\hat{G}_{1}$ Chirp windowing', color=colors['One'])
+#ax.plot(f_range_trans, rhs.DB(chirp_transient['bias']), '^-',markerfacecolor='none', label='Bias $\hat{G}_{2}$ Chirp transient clip', color=colors['Two'])
 ax.plot(f_range_trans, rhs.DB(chirp_transient['bias']), '^-', label='Bias $\hat{G}_{2}$ Chirp transient clip', color=colors['Two'])
 ax.plot(f_range_trans, 10*np.log10(chirp_transient['var']), '--',linewidth=3, label='Variance $\hat{G}_{2}$ Chirp transien clip', color=colors['Two'])
+#ax.plot(f_range, rhs.DB(chirp_lpm['bias']), '^-',markerfacecolor='none', label='Bias $\hat{G}_{3}$ Chirp LPM', color=colors['Three'])
 ax.plot(f_range, rhs.DB(chirp_lpm['bias']), '^-', label='Bias $\hat{G}_{3}$ Chirp LPM', color=colors['Three'])
 ax.plot(f_range, 10*np.log10(chirp_lpm['var']), '--', linewidth=3, label='Variance $\hat{G}_{3}$ Chirp LPM', color=colors['Three'])
+
 
 method_lines = [
     mlines.Line2D([], [], color=colors['Zero'], marker='', linestyle='-', label='$G_{0}$'),
@@ -117,7 +121,7 @@ method_lines = [
 # Creating custom legend entries for Bias and Variance
 type_lines = [
     mlines.Line2D([], [], color='black', marker='^', linestyle='-', label='Bias'),
-    mlines.Line2D([], [], color='black', marker='', linestyle='--', label='Variance')
+    #mlines.Line2D([], [], color='black', marker='', linestyle='--', label='Variance')
 ]
 # Combine the legend entries
 handles = method_lines + [mlines.Line2D([], [], color='none', marker='', linestyle='', label='')] * (len(method_lines) - len(type_lines)) + type_lines
@@ -125,19 +129,19 @@ labels = [h.get_label() for h in handles]
 
 #title_test=
 # Plot parameters
-ax.set_title(chirp_transient['title']+str('\n'),fontsize=18)
+ax.set_title(chirp_transient['title']+str('\n'),fontsize=12)
 ax.set_xlabel('Frequency [Hz]', fontsize=18)
 ax.set_ylabel('Magnitude [dB]', fontsize=18)
 ax.legend(handles, labels, loc='upper center', fontsize=18,  ncol=2)
 ax.set_xscale('log')
 ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
 ax.set_xlim([f_range[0], f_range[-1]])
-ax.set_xlim([0.009, f_range[-1]])
-ax.set_ylim([-80, 40])
+#ax.set_xlim([0.009, f_range[-1]])
+ax.set_ylim([-140, 40])
 ax.tick_params(axis='both', which='major', labelsize=14)
 #ax.tick_params(axis='both', which='both', width=2,length=4)
 # save figure to pdf
-fig.savefig('chirp_biasvariance_N20000_nu99_ny20_P4.pdf', bbox_inches='tight')
+fig.savefig('chirp_biasvariance_N20000_nu99_ny99_P1.pdf', bbox_inches='tight')
 
 
 plt.tight_layout()
@@ -170,7 +174,7 @@ method_lines = [
 # Creating custom legend entries for Bias and Variance
 type_lines = [
     mlines.Line2D([], [], color='black', marker='^', linestyle='-', label='Bias'),
-    mlines.Line2D([], [], color='black', marker='', linestyle='--', label='Variance')
+    #mlines.Line2D([], [], color='black', marker='', linestyle='--', label='Variance')
 ]
 # Combine the legend entries
 handles = method_lines + [mlines.Line2D([], [], color='none', marker='', linestyle='', label='')] * (len(method_lines) - len(type_lines)) + type_lines
@@ -178,20 +182,20 @@ labels = [h.get_label() for h in handles]
 # Creating a single legend with two columns, ensuring correct item placement
 
 # Plot parameters
-ax.set_title(multisine_transient['title']+str('\n'),fontsize=18)
+ax.set_title(multisine_transient['title']+str('\n'),fontsize=12)
 ax.set_xlabel('Frequency [Hz]', fontsize=18)
 ax.set_ylabel('Magnitude [dB]', fontsize=18)
 ax.legend(handles, labels, loc='upper center', fontsize=18,  ncol=2)
 ax.set_xscale('log')
 ax.grid(True, which="both", linestyle='--', linewidth=0.5, color='gray', alpha=0.4)
 ax.set_xlim([f_range[0], f_range[-1]])
-ax.set_xlim([0.009, f_range[-1]])
-ax.set_ylim([-80, 40])
+#ax.set_xlim([0.009, f_range[-1]])
+ax.set_ylim([-140, 40])
 ax.tick_params(axis='both', which='major', labelsize=14)
 #ax.tick_params(axis='both', which='both', width=2,length=4)
 
 # Save plot to pdf
-fig.savefig('multisine_biasvariance_N20000_nu99_ny20_P4.pdf', bbox_inches='tight')
+fig.savefig('multisine_biasvariance_N20000_nu99_ny99_P1.pdf', bbox_inches='tight')
 
 
 plt.tight_layout()
